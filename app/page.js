@@ -2,213 +2,181 @@
 import { useState, useEffect, useRef } from "react";
 
 const AGENTS = [
-  {id:"JARVIS", name:"JARVIS PRIME", emoji:"🧠", color:"#a855f7", role:"Main Boss"},
-  {id:"PULSE", name:"PULSE-360", emoji:"📰", color:"#ef4444", role:"News Monitor"},
-  {id:"VERIFACT", name:"VERIFACT", emoji:"🛡️", color:"#22c55e", role:"Fake Checker"},
-  {id:"SHOPPER", name:"SHOPPER", emoji:"🛒", color:"#ec4899", role:"Deals Finder"},
-  {id:"NEWS", name:"NEWS", emoji:"🌐", color:"#3b82f6", role:"Live News"},
-  {id:"TRIP", name:"TRIP PLANNER", emoji:"🗺️", color:"#eab308", role:"Trip Guide"},
-  {id:"TICKET", name:"TICKET FINDER", emoji:"✈️", color:"#6366f1", role:"Ticket Booker"},
+  {id:"JARVIS", name:"JARVIS PRIME", role:"Prime Orchestrator", color:"#facc15", glow:"#facc15", desc:"Main Boss - All Systems"},
+  {id:"SHOPPER", name:"SHOPPER", role:"Deals Finder", color:"#ec4899", glow:"#ec4899", desc:"Chiffon Sarees ₹799 Best Today"},
+  {id:"PULSE", name:"PULSE-360", role:"Site Monitor", color:"#ef4444", glow:"#ef4444", desc:"Site LIVE Monitoring"},
+  {id:"NEWS", name:"NEWS", role:"Live News", color:"#3b82f6", glow:"#3b82f6", desc:"AP Monsoon Trending"},
+  {id:"TRIP", name:"TRIP PLANNER", role:"Trip Guide", color:"#eab308", glow:"#eab308", desc:"Araku Valley Best Place"},
+  {id:"TICKET", name:"TICKET FINDER", role:"Ticket Booker", color:"#6366f1", glow:"#6366f1", desc:"Train ₹280 Best Booking"},
+  {id:"VERIFACT", name:"VERIFACT", role:"Fake Checker", color:"#22c55e", glow:"#22c55e", desc:"Fake News Verification"},
 ];
 
-function getInstantBest(low){
-  if(low.includes("saree")||low.includes("chiffon")) return `Chiffon Saree ₹799 60% OFF best today!`;
-  if(low.includes("shoe")) return `Shoes ₹1299 56% OFF best!`;
-  if(low.includes("phone")) return `Phone 5G ₹14999 best!`;
-  if(low.includes("trip")) return `Araku Valley best today!`;
-  if(low.includes("news")) return `AP Monsoon No.1 trending!`;
-  if(low.includes("ticket")) return `Train ₹280 24 seats best!`;
-  if(low.includes("pulse360")) return `Site LIVE 120ms fast!`;
-  return `All systems best today!`;
-}
+const ROLL_CALL_TEXTS = {
+  JARVIS: "Jarvis Prime Online, Prime Orchestrator Active, 6 agents standing by. What are your orders, Boss?",
+  SHOPPER: "Shopper reporting Boss! Daily best deals active - Chiffon Saree ₹799 MRP ₹1999 60% OFF 4.3 star - cheapest today, real cards ready Boss!",
+  PULSE: "Pulse-360 reporting Boss! News site monitoring active, site LIVE 120ms super fast & Araku Valley topic best trending today Boss!",
+  NEWS: "News Agent reporting Boss! Live news feeding active - AP Monsoon No.1 trending today, real headlines fetching Boss!",
+  TRIP: "Trip Planner reporting Boss! Best places active - Araku Valley + Maredumilli monsoon best today, waterfalls full Boss!",
+  TICKET: "Ticket Finder reporting Boss! Bookings active - Train 17208 ₹280 24 seats + Hotel ₹1200 combo ₹1800 save ₹800 best today Boss!",
+  VERIFACT: "Verifact reporting Boss! Fake detection active - 100% real vs fake verification ready, no scam Boss!",
+};
 
 export default function Home(){
-  const [activeAgent, setActiveAgent] = useState(AGENTS[0]);
-  const [messages, setMessages] = useState([{role:"assistant", content:"⚡ AVENGERS ASSEMBLE MODE ACTIVATED BOSS!\n\nPrati agent okari tarwatha okaru reporting chestaru!\nTry: chiffon sarees, trip to araku, news", agent:AGENTS[0], isReport:false}]);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [isRollCall, setIsRollCall] = useState(false);
+  const [terminal, setTerminal] = useState("Initializing Avengers Protocol...");
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [typingText, setTypingText] = useState("");
-  const [finalDeals, setFinalDeals] = useState([]);
-  const [reportingQueue, setReportingQueue] = useState([]);
-  const [currentReporter, setCurrentReporter] = useState(null);
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [musicOn, setMusicOn] = useState(false);
-  const chatRef = useRef(null);
-  const audioCtxRef = useRef(null);
+  const [deals, setDeals] = useState([]);
+  const [showResult, setShowResult] = useState("");
+  const audioRef = useRef(null);
 
-  useEffect(()=>{ chatRef.current?.scrollIntoView({behavior:"smooth"}); },[messages, typingText, finalDeals, currentReporter]);
+  const activeAgent = AGENTS[activeIdx];
 
-  const playSound = (freq)=>{
-    if(!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext||window.webkitAudioContext)();
-    const ctx=audioCtxRef.current; const o=ctx.createOscillator(); const g=ctx.createGain();
-    o.frequency.value=freq; g.gain.value=0.12; o.connect(g); g.connect(ctx.destination);
-    o.start(); g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.4); o.stop(ctx.currentTime+0.4);
+  const playTone = (color)=>{
+    if(!audioRef.current) audioRef.current = new (window.AudioContext||window.webkitAudioContext)();
+    const ctx=audioRef.current; const o=ctx.createOscillator(); const g=ctx.createGain();
+    const map={"#facc15":440,"#ec4899":600,"#ef4444":350,"#3b82f6":500,"#eab308":520,"#6366f1":540,"#22c55e":560};
+    o.frequency.value=map[color]||440; o.type="sine"; g.gain.value=0.14;
+    o.connect(g); g.connect(ctx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.5); o.stop(ctx.currentTime+0.5);
   };
 
-  const speak = (text)=>{
+  const speak = (t)=>{
     if('speechSynthesis' in window){
       window.speechSynthesis.cancel();
-      const u=new SpeechSynthesisUtterance(text.slice(0,180)); u.rate=1.1; u.lang='en-IN';
-      u.onstart=()=>setIsSpeaking(true); u.onend=()=>setIsSpeaking(false);
+      const u=new SpeechSynthesisUtterance(t.slice(0,200)); u.rate=1.05; u.lang='en-IN';
       window.speechSynthesis.speak(u);
     }
   };
 
-  const startVoice = ()=>{
-    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR){ alert("Chrome lo open chey Boss!"); return; }
-    const rec=new SR(); rec.lang="en-IN";
-    rec.onstart=()=>{ setIsListening(true); playSound(700); };
-    rec.onend=()=>setIsListening(false);
-    rec.onresult=(e)=>{ const t=e.results[0][0].transcript; handleOrder(t); };
-    rec.start();
+  const startRollCall = ()=>{
+    setIsRollCall(true); setDeals([]); setShowResult("");
+    let idx=0;
+    const next=()=>{
+      if(idx>=AGENTS.length){
+        setIsRollCall(false); setTerminal("A.V.E.N.G.E.R.S Roll Call Complete Boss. All 7 agents reporting done. What are your orders sir? - Try: chiffon sarees, trip to araku, news, ticket to hyd");
+        speak("All 7 agents reporting complete Boss. What are your orders?");
+        return;
+      }
+      setActiveIdx(idx);
+      const ag=AGENTS[idx];
+      const txt = `${ag.name} REPORTING BOSS! ${ROLL_CALL_TEXTS[ag.id]}`;
+      setTerminal(txt); playTone(ag.color); speak(txt);
+      idx++; setTimeout(next, 2800);
+    };
+    next();
   };
+
+  useEffect(()=>{ setTimeout(startRollCall, 1200); },[]);
 
   const handleOrder = async (txt)=>{
     const order=txt.trim(); if(!order) return;
     const low=order.toLowerCase();
-    let mainId="JARVIS";
+    if(low.includes("wake up")||low.includes("agents assemble")||low.includes("roll call")||low==="jarvis"){
+      startRollCall(); setInput(""); return;
+    }
+    setInput(""); setDeals([]); setIsRollCall(false);
+    let targetId="JARVIS";
     const isProduct=/(saree|chiffon|fabric|dress|kurta|shoe|phone|watch|bag|deal|under \d+)/i.test(low);
     const isTicket=low.includes("ticket")||(low.includes("bus")&&low.includes("to"))||(low.includes("train")&&low.includes("to"));
-    if(low.includes("pulse360")) mainId="PULSE";
-    else if(low.includes("verifact")||low.includes("fake")) mainId="VERIFACT";
-    else if(isTicket) mainId="TICKET";
-    else if((low.includes("trip")||low.includes("visit"))&&!isProduct) mainId="TRIP";
-    else if(low.startsWith("news")) mainId="NEWS";
-    else if(isProduct||low.split(" ").length<=6) mainId="SHOPPER";
+    if(low.includes("pulse360")) targetId="PULSE";
+    else if(low.includes("verifact")||low.includes("fake")) targetId="VERIFACT";
+    else if(isTicket) targetId="TICKET";
+    else if((low.includes("trip")||low.includes("visit"))&&!isProduct) targetId="TRIP";
+    else if(low.startsWith("news")) targetId="NEWS";
+    else if(isProduct||low.split(" ").length<=6) targetId="SHOPPER";
 
-    setInput(""); setFinalDeals([]); setReportingQueue([]); setCurrentReporter(null);
-    setMessages(prev=>[...prev, {role:"user", content:order}]);
+    const tIdx=AGENTS.findIndex(a=>a.id===targetId);
+    setActiveIdx(tIdx>=0?tIdx:0);
+    const ag=AGENTS[tIdx>=0?tIdx:0];
 
-    // MAIN AGENT FIRST ONLINE
-    const mainAgent=AGENTS.find(a=>a.id===mainId);
-    setActiveAgent(mainAgent);
-    const best=getInstantBest(low);
+    // Sequential reporting for this order
+    setTerminal(`${ag.name} REPORTING BOSS! Eroju Best - ${order} kosam best fetching Boss... 🔴 LIVE`);
+    playTone(ag.color); speak(`${ag.name} reporting Boss, fetching best for ${order}`);
 
-    // REPORTING SEQUENCE - PRATI AGENT OKARI TARWATHA OKARU
-    const sequence = [
-      {agent:AGENTS[0], text:`JARVIS PRIME REPORTING BOSS! 🧠 Main system online, order received: "${order}". Analyzing best agent... ${mainAgent.name} selected for this mission! 🔴 LIVE`},
-      {agent:mainAgent, text:`${mainAgent.emoji} ${mainAgent.name} REPORTING BOSS! ${mainAgent.role} online! Eroju Best - ${best} Real data fetching Boss! 🔴 LIVE`},
-    ];
-
-    // Add other relevant agents in queue
-    if(mainId==="SHOPPER"){
-      sequence.push(
-        {agent:AGENTS[4], text:`🌐 NEWS AGENT REPORTING BOSS! Shopping trends check - Chiffon sarees 200% trending today Boss!`},
-        {agent:AGENTS[2], text:`🛡️ VERIFACT REPORTING BOSS! Price verified - ₹799 deal 100% real, no fake Boss!`},
-      );
-    } else if(mainId==="TRIP"){
-      sequence.push(
-        {agent:AGENTS[6], text:`✈️ TICKET AGENT REPORTING BOSS! Tickets checked - Train ₹280 24 seats available for ${order} Boss!`},
-        {agent:AGENTS[4], text:`🌐 NEWS AGENT REPORTING BOSS! Weather report - Araku lo monsoon best time to visit Boss!`},
-      );
-    } else if(mainId==="NEWS"){
-      sequence.push(
-        {agent:AGENTS[2], text:`🛡️ VERIFACT REPORTING BOSS! News authenticity verified - 100% real news Boss!`},
-      );
-    } else if(mainId==="TICKET"){
-      sequence.push(
-        {agent:AGENTS[5], text:`🗺️ TRIP AGENT REPORTING BOSS! Place guide ready - best spots near destination Boss!`},
-        {agent:AGENTS[3], text:`🛒 SHOPPER AGENT REPORTING BOSS! Travel accessories best deals ₹499 lo available Boss!`},
-      );
-    }
-
-    // FINAL ASSEMBLE REPORT
-    sequence.push({agent:AGENTS[0], text:`JARVIS PRIME FINAL REPORTING BOSS! 🧠 All agents reported! Mission complete - full data below! ✅ AVENGERS ASSEMBLE COMPLETE!`});
-
-    // PLAY SEQUENTIAL REPORTING
-    let idx=0;
-    const playNext = async ()=>{
-      if(idx>=sequence.length){
-        // After all reports, fetch real data
-        setCurrentReporter(null); setIsTyping(true); setTypingText(`${mainAgent.name} fetching real live data Boss...`);
-        try{
-          const res=await fetch("/api/avengers",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:order, avenger:mainId, t:Date.now(), r:Math.random()})});
-          const data=await res.json();
-          setIsTyping(false); setTypingText("");
-          setMessages(prev=>[...prev, {role:"assistant", content:data.reply, agent:mainAgent}]);
-          if(data.deals) setFinalDeals(data.deals);
-          speak(data.reply);
-        }catch(e){ setIsTyping(false); setMessages(prev=>[...prev, {role:"assistant", content:"Error: "+e.message, agent:mainAgent}]); }
-        return;
-      }
-      const item=sequence[idx];
-      setCurrentReporter(item.agent); setActiveAgent(item.agent);
-      playSound(400+idx*60);
-      setMessages(prev=>[...prev, {role:"assistant", content:item.text, agent:item.agent, isReport:true}]);
-      speak(item.text);
-      idx++;
-      setTimeout(playNext, 1800); // 1.8 sec gap - okari tarvatha okaru
-    };
-    playNext();
+    try{
+      const res=await fetch("/api/avengers",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:order, avenger:targetId, t:Date.now(), r:Math.random()})});
+      const data=await res.json();
+      setTimeout(()=>{
+        setShowResult(data.reply);
+        setTerminal(data.reply);
+        if(data.deals) setDeals(data.deals);
+        speak(data.reply.slice(0,220));
+      }, 1000);
+    }catch(e){ setTerminal("Error: "+e.message); }
   };
 
   return (
-    <div style={{position:"fixed", inset:0, background:"radial-gradient(ellipse at center, #1e1b4b 0%, #000 80%)", color:"#fff", display:"flex", flexDirection:"column", fontFamily:"monospace"}}>
+    <div style={{position:"fixed", inset:0, background:"#050507", color:"#fff", fontFamily:"monospace", display:"flex", flexDirection:"column"}}>
       <style>{`
-        @keyframes glow{0%,100%{box-shadow:0 0 10px currentColor}50%{box-shadow:0 0 20px currentColor,0 0 30px currentColor}}
-        @keyframes reportSlide{0%{transform:translateX(-100%);opacity:0}100%{transform:translateX(0);opacity:1}}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+        @keyframes orbPulse{0%,100%{box-shadow:0 0 25px currentColor,0 0 50px currentColor,0 0 80px currentColor; transform:scale(1)}50%{box-shadow:0 0 35px currentColor,0 0 70px currentColor,0 0 100px currentColor; transform:scale(1.06)}}
+        @keyframes flicker{0%,100%{opacity:1}50%{opacity:0.85}}
       `}</style>
 
-      <div style={{height:"56px", background:"#0a0a0a", borderBottom:`2px solid ${activeAgent.color}`, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 10px"}}>
-        <div style={{display:"flex", alignItems:"center", gap:"8px"}}>
-          <div style={{width:"32px", height:"32px", borderRadius:"50%", background:activeAgent.color, display:"flex", alignItems:"center", justifyContent:"center", animation: currentReporter?"glow 0.8s infinite":"none", color:"#fff"}}>{currentReporter? currentReporter.emoji : activeAgent.emoji}</div>
-          <div>
-            <div style={{fontSize:"13px", fontWeight:"bold"}}>{currentReporter? `${currentReporter.name} REPORTING...` : `AVENGERS - ${activeAgent.name}`}</div>
-            <div style={{fontSize:"9px", opacity:0.7}}>{isSpeaking?"🔊 SPEAKING": isListening?"🎤 LISTENING": currentReporter?`⚡ ${currentReporter.role} REPORTING BOSS`:"⚡ ASSEMBLE MODE"}</div>
-          </div>
-        </div>
-        <div style={{display:"flex", gap:"4px"}}>
-          {AGENTS.map(a=>(
-            <div key={a.id} style={{width:"26px", height:"26px", borderRadius:"5px", background: currentReporter?.id===a.id? a.color : activeAgent.id===a.id? a.color:"#222", border: currentReporter?.id===a.id?`2px solid #fff`:`1px solid ${a.color}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"12px", opacity: currentReporter?.id===a.id?1:0.6, animation: currentReporter?.id===a.id?"glow 0.6s infinite":"none"}}>{a.emoji}</div>
-          ))}
-        </div>
+      <div style={{height:"30px", background:"#0a0a0a", borderBottom:"1px solid #1a1a1a", display:"flex", alignItems:"center", padding:"0 10px", fontSize:"9px", justifyContent:"space-between"}}>
+        <div style={{color:"#facc15", letterSpacing:"1px"}}>AVENGERS PROTOCOL • JARVIS PRIME • [{AGENTS.length} AGENTS]</div>
+        <div style={{color:"#555"}}>Day 22 - Meet the team behind JARVIS - {activeAgent.name} ONLINE</div>
       </div>
 
-      <div style={{flex:1, overflowY:"auto", padding:"12px"}}>
-        {messages.map((m,i)=>(
-          <div key={i} style={{marginBottom:"10px", textAlign: m.role==="user"?"right":"left", animation: m.isReport?"reportSlide 0.5s ease":"none"}}>
-            <div style={{
-              display:"inline-block", maxWidth:"88%", padding:"10px 12px", borderRadius:"12px",
-              background: m.role==="user"? "#6d28d9" : m.isReport? `linear-gradient(135deg, #1a1a1a, ${m.agent.color}20)` : "#1e1e1e",
-              border: m.isReport?`1px solid ${m.agent.color}`:"1px solid #333",
-              boxShadow: m.isReport?`0 0 12px ${m.agent.color}60`:"none",
-              fontSize:"12px", whiteSpace:"pre-wrap", textAlign:"left"
-            }}>
-              {m.role==="assistant" && <div style={{fontSize:"8px", color:m.agent.color, marginBottom:"3px", fontWeight:"bold"}}>{m.isReport?`● ${m.agent.name} REPORTING BOSS!`:`● ${m.agent.name} ONLINE`}</div>}
-              {m.content}
-            </div>
+      <div style={{height:"42px", background:"#070708", borderBottom:"1px solid #111", display:"flex", alignItems:"center", gap:"6px", padding:"0 8px", overflowX:"auto"}}>
+        {AGENTS.map((a,i)=>(
+          <div key={a.id} style={{
+            minWidth:"62px", height:"26px", borderRadius:"3px", border: i===activeIdx?`1px solid ${a.color}`:"1px solid #222",
+            background: i===activeIdx?`${a.color}18`:"#0f0f0f", color: i===activeIdx?a.color:"#666",
+            fontSize:"7px", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:"bold",
+            boxShadow: i===activeIdx?`0 0 12px ${a.color}50`:"none", cursor:"pointer", opacity: isRollCall && i>activeIdx?0.35:1
+          }}>
+            {a.name.split(" ")[0]}
           </div>
         ))}
-        {currentReporter && (
-          <div style={{textAlign:"left", marginBottom:"10px"}}>
-            <div style={{display:"inline-block", background:"#000", border:`2px solid ${currentReporter.color}`, padding:"8px 12px", borderRadius:"20px", fontSize:"11px", animation:"pulse 1s infinite"}}>
-              🎤 {currentReporter.emoji} {currentReporter.name} REPORTING BOSS!...
-            </div>
+      </div>
+
+      <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"10px"}}>
+        <div style={{
+          width:"98px", height:"98px", borderRadius:"50%",
+          background:`radial-gradient(circle at 32% 28%, #fff 0%, ${activeAgent.color} 22%, ${activeAgent.color} 68%, #000 100%)`,
+          border:`2px solid ${activeAgent.color}`, animation:"orbPulse 2s infinite", color:activeAgent.color,
+          display:"flex", alignItems:"center", justifyContent:"center"
+        }}>
+          <div style={{width:"20px", height:"20px", background:"#fff", borderRadius:"50%", boxShadow:"0 0 15px #fff"}}></div>
+        </div>
+
+        <div style={{marginTop:"16px", fontSize:"15px", fontWeight:"bold", letterSpacing:"5px", color:activeAgent.color, textShadow:`0 0 18px ${activeAgent.color}`}}>{activeAgent.name}</div>
+        <div style={{marginTop:"6px", fontSize:"8px", color:"#666", letterSpacing:"2px"}}>{activeAgent.role} • {activeAgent.desc}</div>
+        <div style={{marginTop:"6px", width:"44px", height:"2px", background:activeAgent.color, boxShadow:`0 0 10px ${activeAgent.color}`}}></div>
+
+        <div style={{marginTop:"18px", width:"100%", maxWidth:"720px", background:"#0a0a0a", border:`1px solid ${activeAgent.color}30`, borderRadius:"6px", padding:"10px 12px", minHeight:"54px"}}>
+          <div style={{fontSize:"11px", color:"#ccc", lineHeight:"1.5", whiteSpace:"pre-wrap"}}>
+            <span style={{color:activeAgent.color}}>{isRollCall?"● REPORTING: ":"> "}</span>{terminal}
+            <span style={{animation:"flicker 1s infinite"}}> █</span>
           </div>
-        )}
-        {isTyping && <div style={{fontSize:"12px", padding:"8px", background:"#111", borderRadius:"8px", border:`1px solid ${activeAgent.color}`}}>{typingText}</div>}
-        {finalDeals.length>0 && (
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px", marginTop:"10px"}}>
-            {finalDeals.map((d,i)=>(
-              <div key={i} style={{background:"#fff", color:"#000", borderRadius:"8px", padding:"6px", border: d.best?"3px solid #22c55e":"1px solid #ccc"}}>
-                {d.best && <div style={{background:"#22c55e", color:"#fff", fontSize:"8px", padding:"2px 4px", borderRadius:"3px"}}>BEST TODAY</div>}
-                <img src={d.image} alt="" style={{width:"100%", height:"75px", objectFit:"contain"}}/>
-                <div style={{fontSize:"10px", fontWeight:"bold"}}>{d.title.slice(0,28)}</div>
-                <div style={{fontSize:"11px", color:"green"}}>₹{d.price}</div>
+          {showResult && showResult!==terminal && (
+            <div style={{marginTop:"8px", fontSize:"10px", color:"#999", whiteSpace:"pre-wrap", borderTop:"1px solid #1a1a1a", paddingTop:"6px"}}>{showResult.slice(0,600)}</div>
+          )}
+        </div>
+
+        {deals.length>0 && (
+          <div style={{marginTop:"12px", display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:"6px", width:"100%", maxWidth:"720px", maxHeight:"130px", overflowY:"auto"}}>
+            {deals.map((d,i)=>(
+              <div key={i} style={{background:"#fff", color:"#000", borderRadius:"6px", padding:"5px", border: d.best?"2px solid #22c55e":"1px solid #ccc"}}>
+                <img src={d.image} alt="" style={{width:"100%", height:"48px", objectFit:"contain"}}/>
+                <div style={{fontSize:"8px", fontWeight:"bold"}}>{d.title.slice(0,22)}</div>
+                <div style={{fontSize:"10px", color:"#16a34a", fontWeight:"bold"}}>₹{d.price} {d.best?"🏆":""}</div>
               </div>
             ))}
           </div>
         )}
-        <div ref={chatRef} style={{height:"20px"}}/>
+
+        <div style={{marginTop:"10px", fontSize:"8px", color:"#333", letterSpacing:"1px"}}>
+          {isRollCall?`ROLL CALL ${activeIdx+1}/${AGENTS.length} - All agents reporting Boss`:"JARVIS COMMAND CENTER - Say 'Agents Assemble' for Roll Call"}
+        </div>
       </div>
 
-      <div style={{height:"64px", background:"#0a0a0a", borderTop:`2px solid ${activeAgent.color}`, display:"flex", alignItems:"center", padding:"0 10px", gap:"8px"}}>
-        <button onClick={startVoice} style={{width:"44px", height:"44px", borderRadius:"50%", border:`2px solid ${activeAgent.color}`, background: isListening?"#ef4444": currentReporter? currentReporter.color:"#222", color:"#fff", cursor:"pointer", animation: isListening||currentReporter?"glow 0.6s infinite":"none"}}>{isListening?"🔴":"🎤"}</button>
-        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleOrder(input)} placeholder="Type: chiffon sarees, trip, news, ticket..." style={{flex:1, background:"#111", border:`1px solid ${activeAgent.color}`, borderRadius:"20px", padding:"10px 14px", color:"#fff", outline:"none"}}/>
-        <button onClick={()=>handleOrder(input)} style={{background:activeAgent.color, color:"#fff", border:"none", borderRadius:"20px", padding:"10px 16px", fontWeight:"bold", cursor:"pointer"}}>SEND</button>
+      <div style={{height:"56px", background:"#08080a", borderTop:`1px solid ${activeAgent.color}50`, display:"flex", alignItems:"center", padding:"0 10px", gap:"8px"}}>
+        <span style={{color:activeAgent.color, fontSize:"12px"}}>❯</span>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleOrder(input)} placeholder='Wake up Jarvis / chiffon sarees / trip to araku / news / ticket to hyd' style={{flex:1, background:"transparent", border:"none", outline:"none", color:"#fff", fontSize:"11px", fontFamily:"monospace"}}/>
+        <button onClick={()=>handleOrder(input)} style={{background:activeAgent.color, color:"#000", border:"none", borderRadius:"4px", padding:"7px 14px", fontSize:"10px", fontWeight:"bold", cursor:"pointer"}}>EXECUTE</button>
+        <button onClick={startRollCall} style={{background:"#111", border:`1px solid ${activeAgent.color}`, color:activeAgent.color, borderRadius:"4px", padding:"7px 10px", fontSize:"9px", cursor:"pointer"}}>ROLL CALL</button>
       </div>
     </div>
   );
