@@ -1,132 +1,163 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { db } from "../utils/cloudinary"; // placeholder, we will init below
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-// --- YOUR DETAILS INBUILT ---
-const firebaseConfig = {
-  apiKey: "AIzaSyAITlkoZIsMx99BDrj14I1S-ZtdEMsd1kc",
-  authDomain: "pulse360-news.firebaseapp.com",
-  projectId: "pulse360-news",
-  storageBucket: "pulse360-news.firebasestorage.app",
-  messagingSenderId: "789441397313",
-  appId: "1:789441397313:web:ff3abd4184818b23d13cc0"
+const AVENGERS = {
+  HULK: { name: "HULK", color: "shadow-green-500", pitch: 0.3, rate: 0.7, img: "💚", entry: "HULK SMASH IN! ON DUTY BOSS!" },
+  IRON_MAN: { name: "IRON MAN", color: "shadow-red-500", pitch: 1.1, rate: 1.1, img: "❤️", entry: "Iron Man on duty, Boss. Systems online." },
+  THOR: { name: "THOR", color: "shadow-blue-500", pitch: 0.7, rate: 0.85, img: "⚡", entry: "Thor, God of Thunder, on duty!" },
+  BLACK_WIDOW: { name: "WIDOW", color: "shadow-pink-500", pitch: 1.4, rate: 1.0, img: "🕷️", entry: "Black Widow on duty, Boss." },
+  CAPTAIN: { name: "CAP", color: "shadow-blue-300", pitch: 0.9, rate: 1.0, img: "🛡️", entry: "Captain America on duty, Boss!" },
 };
-const CLOUDINARY_CLOUD = "ld6mifgm";
-const CLOUDINARY_PRESET = "reporter_upload";
-let app, dbFirestore;
-try { app = initializeApp(firebaseConfig); dbFirestore = getFirestore(app); } catch(e){}
 
-export default function AvenJarvis() {
-  const [assembled, setAssembled] = useState(false);
+export default function AvenJarvis(){
+  const [active, setActive] = useState(AVENGERS.IRON_MAN);
   const [listening, setListening] = useState(false);
-  const [order, setOrder] = useState("");
-  const [reply, setReply] = useState("");
-  const [avenger, setAvenger] = useState("IRON MAN");
+  const [order, setOrder] = useState("SAY AVENGERS ASSEMBLE");
+  const [reply, setReply] = useState("Waiting for Boss order...");
   const [logs, setLogs] = useState([]);
-  const recognitionRef = useRef(null);
+  const [searching, setSearching] = useState(false);
+  const recogRef = useRef(null);
 
-  const avengers = ["IRON MAN","CAPTAIN AMERICA","THOR","BLACK WIDOW","HULK"];
-
-  useEffect(()=>{
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if(SpeechRecognition){
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.lang = 'en-US';
-      recognitionRef.current.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        handleBossOrder(transcript);
-      };
-    }
-    // Clap detection
-    navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const analyser = audioCtx.createAnalyser();
-      const mic = audioCtx.createMediaStreamSource(stream);
-      mic.connect(analyser);
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      let lastClap = 0;
-      const detect = ()=>{
-        analyser.getByteFrequencyData(data);
-        const vol = data.reduce((a,b)=>a+b)/data.length;
-        if(vol>140 && Date.now()-lastClap>1000){
-          lastClap = Date.now();
-          if(!assembled) doAssemble();
-          else triggerListen();
-        }
-        requestAnimationFrame(detect);
-      }; detect();
-    }).catch(()=>{});
-  },[assembled]);
-
-  const doAssemble = () => {
-    setAssembled(true);
-    const voices = [
-      {name:"IRON MAN", text:"Yes Boss. Systems online."},
-      {name:"CAPTAIN", text:"On your left, Boss."},
-      {name:"THOR", text:"I am ready, Boss!"},
-      {name:"WIDOW", text:"Mission ready, Boss."},
-      {name:"HULK", text:"Hulk... listens to Boss!"},
-    ];
-    let i=0;
-    const playNext = ()=>{
-      if(i>=voices.length) return;
-      setAvenger(voices[i].name);
-      speak(voices[i].text);
-      i++; setTimeout(playNext, 2000);
-    }; playNext();
-  };
-
-  const speak = (text) => {
+  // VOICE PITCH MATCH
+  const speak = (text, avenger = active) => {
+    speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1; u.pitch = 1;
-    window.speechSynthesis.speak(u);
-    setReply(text);
+    u.pitch = avenger.pitch;
+    u.rate = avenger.rate;
+    // Try to get best voice
+    const voices = speechSynthesis.getVoices();
+    u.voice = voices.find(v=>v.name.includes("Google")) || voices[0];
+    speechSynthesis.speak(u);
   };
 
-  const triggerListen = () => {
-    setListening(true); speak("Yes Boss, order please");
-    setTimeout(()=>{ recognitionRef.current?.start(); }, 800);
+  // AUTO MIC + WAKE WORD
+  useEffect(()=>{
+    const startWake = () => {
+      const SR = window.webkitSpeechRecognition || window.SpeechRecognition;
+      if(!SR) return;
+      const rec = new SR();
+      rec.continuous = true;
+      rec.interimResults = false;
+      rec.lang = 'en-US';
+      rec.onresult = (e)=>{
+        const cmd = e.results[e.results.length-1][0].transcript.toLowerCase();
+        console.log("Heard:", cmd);
+        if(cmd.includes("avengers assemble")){
+          wakeUp();
+        } else if(cmd.length > 3 && listening){
+          handleOrder(cmd);
+        }
+      };
+      rec.onend = ()=> rec.start();
+      rec.start();
+      recogRef.current = rec;
+      setListening(true);
+    };
+
+    // One click = auto allow forever
+    const onFirstClick = () => {
+      navigator.mediaDevices.getUserMedia({audio:true}).then(()=>{
+        startWake();
+        document.removeEventListener('click', onFirstClick);
+      });
+    };
+    document.addEventListener('click', onFirstClick);
+    return ()=> document.removeEventListener('click', onFirstClick);
+  }, [listening]);
+
+  const wakeUp = () => {
+    setSearching(true);
+    // Hologram entry one by one
+    const keys = Object.keys(AVENGERS);
+    let i=0;
+    const interval = setInterval(()=>{
+      const av = AVENGERS[keys[i]];
+      setActive(av);
+      speak(av.entry, av);
+      setLogs(l=>[...l, `[${new Date().toLocaleTimeString()}] ${av.name}: ON DUTY BOSS`]);
+      i++;
+      if(i>=keys.length){
+        clearInterval(interval);
+        setSearching(false);
+        setReply("ALL AVENGERS ASSEMBLED. ORDER ME BOSS!");
+        speak("All Avengers on duty Boss!");
+      }
+    }, 1200);
   };
 
-  const handleBossOrder = async (text) => {
-    setOrder(text); setListening(false);
-    setLogs(l=>[{time:new Date().toLocaleTimeString(), order:text, avenger},...l].slice(0,10));
+  const handleOrder = async (text) => {
+    if(!text) return;
+    setOrder(text.toUpperCase());
+    setSearching(true);
+    setLogs(l=>[...l, `[${new Date().toLocaleTimeString()}] BOSS: ${text}`]);
+
+    // SMART ACTIONS - shopping/news/ticket
+    if(text.includes("buy") || text.includes("shop")){
+      window.open(`https://www.amazon.in/s?k=${encodeURIComponent(text)}`, "_blank");
+      setReply("Opening Stark Shopping Portal, Boss!");
+      speak("Opening shopping portal Boss");
+      setSearching(false); return;
+    }
+    if(text.includes("news")){
+      window.open(`https://news.google.com/search?q=${encodeURIComponent(text)}`, "_blank");
+      setReply("Fetching Daily Bugle, Boss!");
+      setSearching(false); return;
+    }
+    if(text.includes("ticket") || text.includes("flight") || text.includes("book")){
+      window.open(`https://www.google.com/travel/flights?q=${encodeURIComponent(text)}`, "_blank");
+      setReply("Opening Stark Travel, Boss!");
+      setSearching(false); return;
+    }
+
+    // GEMINI CALL
+    const avKeys = Object.keys(AVENGERS);
+    const randomAv = AVENGERS[avKeys[Math.floor(Math.random()*avKeys.length)]];
+    setActive(randomAv);
+
     try{
-      // Save to Firebase
-      if(dbFirestore) await addDoc(collection(dbFirestore,"boss_orders"),{order:text, avenger, time:serverTimestamp()});
-    }catch(e){}
-    try{
-      const res = await fetch("/api/avengers",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:text, avenger})});
+      const res = await fetch("/api/avengers", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({prompt: text, avenger: randomAv.name})
+      });
       const data = await res.json();
-      speak(data.reply);
-    }catch(e){ speak(`Yes Boss, ${text} - on it!`); }
+      setReply(data.reply);
+      speak(data.reply, randomAv);
+      setLogs(l=>[...l, `[${new Date().toLocaleTimeString()}] ${randomAv.name}: ${data.reply.substring(0,50)}...`]);
+    }catch(e){
+      setReply("System Error Boss!");
+    }
+    setSearching(false);
   };
 
-  return (
-    <div style={{minHeight:"100vh", background:"radial-gradient(circle at center, #0a1930 0%, #000 80%)", color:"white", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", fontFamily:"monospace", padding:"20px", textAlign:"center"}}>
-      {!assembled? (
-        <>
-          <h1 style={{fontSize:"3rem", letterSpacing:"6px", textShadow:"0 0 20px #00d4ff"}}>AVENJARVIS</h1>
-          <p style={{opacity:0.7}}>YOU ORDER - THEY OBEY</p>
-          <button onClick={doAssemble} style={{marginTop:"30px", padding:"20px 40px", fontSize:"1.2rem", background:"linear-gradient(90deg,#00d4ff,#ff003c)", border:"none", borderRadius:"50px", color:"white", cursor:"pointer", boxShadow:"0 0 30px #00d4ff", fontWeight:"bold"}}>⚡ AVENGERS ASSEMBLE ⚡</button>
-          <p style={{marginTop:"20px", fontSize:"0.9rem", opacity:0.5}}>Or Clap Twice 👏👏</p>
-        </>
-      ):(
-        <>
-          <div style={{width:"150px", height:"150px", borderRadius:"50%", border:`3px solid ${listening?"#00ff88":"#00d4ff"}`, boxShadow:`0 0 40px ${listening?"#00ff88":"#00d4ff"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"2rem", animation:listening?"pulse 1s infinite":""}}>{avenger[0]}</div>
-          <h2 style={{marginTop:"20px", color:"#00d4ff"}}>{avenger} ACTIVE</h2>
-          <div style={{marginTop:"20px", minHeight:"60px"}}><p style={{color:"#aaa"}}>Last Order: <b style={{color:"white"}}>{order || "Waiting Boss..."}</b></p><p style={{fontSize:"1.3rem", marginTop:"10px"}}>{reply}</p></div>
-          <div style={{display:"flex", gap:"10px", marginTop:"25px"}}>
-            <button onClick={triggerListen} style={{padding:"12px 25px", background:"#00d4ff", border:"none", borderRadius:"10px", fontWeight:"bold", cursor:"pointer"}}>🎤 VOICE ORDER</button>
-            <button onClick={()=>{const t=prompt("Type Boss Order:"); if(t) handleBossOrder(t);}} style={{padding:"12px 25px", background:"transparent", border:"1px solid #00d4ff", color:"#00d4ff", borderRadius:"10px", cursor:"pointer"}}>⌨️ TYPE ORDER</button>
-          </div>
-          <div style={{marginTop:"30px", width:"100%", maxWidth:"400px", textAlign:"left", opacity:0.8}}><h4>BOSS LOG</h4>{logs.map((l,i)=><div key={i} style={{fontSize:"0.8rem", borderLeft:"2px solid #ff003c", paddingLeft:"8px", marginTop:"6px"}}>[{l.time}] {l.avenger}: {l.order}</div>)}</div>
-        </>
-      )}
-      <style>{`@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}`}</style>
+  return(
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 font-mono overflow-hidden relative">
+      {/* AVENGERS THEME SEARCH ANIMATION */}
+      {searching && <div className="absolute inset-0 bg-cyan-500/10 backdrop-blur-sm z-10 flex items-center justify-center">
+        <div className="text-cyan-400 animate-ping text-xl">◉ A-V-E-N-G-E-R-S SCANNING...</div>
+      </div>}
+
+      {/* HOLOGRAM */}
+      <div className={`w-40 h-40 rounded-full border-4 border-cyan-400 flex items-center justify-center text-6xl shadow-[0_0_80px_cyan] transition-all duration-500 ${searching?'scale-110':''} ${active.color}`}>
+        <span className="animate-pulse">{active.img}</span>
+      </div>
+      <h1 className="mt-4 text-cyan-400 tracking-[0.5em]">{active.name} ACTIVE</h1>
+      <p className="text-xs opacity-50 mt-2">Last Order: {order}</p>
+
+      <div className="mt-6 w-full max-w-2xl bg-white/5 border border-cyan-900 p-4 rounded-lg min-h-[100px] text-center">
+        {reply}
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <button onClick={wakeUp} className="px-6 py-2 bg-cyan-500 text-black font-bold rounded">AVENGERS ASSEMBLE</button>
+        <button onClick={()=>handleOrder(prompt("Type Order:"))} className="px-6 py-2 border border-cyan-500 rounded">TYPE ORDER</button>
+      </div>
+
+      <div className="mt-6 w-full max-w-2xl text-xs opacity-60">
+        <p>BOSS LOG</p>
+        {logs.slice(-4).map((l,i)=><div key={i}>{l}</div>)}
+      </div>
+      <p className="mt-4 text-[10px] opacity-30">CLICK ANYWHERE TO ALLOW MIC ONCE - THEN JUST SAY "AVENGERS ASSEMBLE"</p>
     </div>
   );
 }
