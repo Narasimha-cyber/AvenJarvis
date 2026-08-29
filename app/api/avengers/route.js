@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
 
 const AGENT_ROLES = {
-  JARVIS: "Prime Orchestrator, controls all 19 agents",
-  FRIDAY: "Daily Intelligence, gives morning briefs",
-  ORACLE: "Automation Engine, handles workflows",
-  ZEUS: "Sales Pipeline, 1528 leads, revenue tracker",
-  STARK: "Project Manager, tracks all builds",
-  STEVE: "Build Ops, ships clean builds",
-  HERALD: "Transcription, Whisper Prime meeting transcriber",
-  VISION: "Intelligent Watch, monitors all feeds",
-  BANNER: "Medical Intelligence, diagnostics",
-  ULTRON: "Security, perimeter secured",
-  HERCULES: "Fitness & Vision, body scan & nutrition"
+  "JARVIS": "LEADER - 6 agents ni manage chesthu, boss orders ni correct agent ki isthavu",
+  "PULSE": "pulse360news.in monitor - site UP/DOWN, posts count, traffic check chesthavu. Website: pulse360news.in",
+  "VERIFACT": "verifact website monitor - verification pending, site health check",
+  "LOCAL": "Local Task agent - PC local tasks, files, reminders",
+  "NEWS": "News Hunter - realtime world news, tech news, headlines instant ga isthavu",
+  "SHOPPER": "Shopping Best Deal Hunter - Amazon, Flipkart, Myntra scan chesi best price comparison chesthavu. Always give format: Amazon ₹X, Flipkart ₹Y, Myntra ₹Z + BEST DEAL",
+  "TICKET": "Ticket Master + Booker sub-agent - place to place travel plan, bus train flight comparison, price + time. User OK ante Booker book chesthadu"
 };
 
 export async function POST(req){
@@ -19,26 +15,35 @@ export async function POST(req){
     const { prompt, avenger = "JARVIS" } = await req.json();
     const key = process.env.GEMINI_API_KEY;
 
-    if(!key) return NextResponse.json({reply: "GEMINI_API_KEY missing in.env Boss!"});
+    if(!key) return NextResponse.json({reply: "GEMINI_API_KEY missing in.env.local Boss! Add chey."});
 
     const models = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-flash-latest"];
     let data = null;
 
+    const isShopping = /shop|buy|deal|price|amazon|flipkart/i.test(prompt);
+    const isTravel = /ticket|travel|bus|train|flight|hyd|vij|bangalore|chennai/i.test(prompt);
+
+    let extraInstruction = "";
+    if(isShopping) extraInstruction = "User wants shopping best deals. Give 3 sites comparison with fake but realistic Indian prices. Highlight BEST. Say 'Background scan complete sir, deals shown in portal'";
+    if(isTravel) extraInstruction = "User wants travel. Give Bus ₹890 6h, Train Vande Bharat ₹1240 4.5h BEST, Flight ₹2890 1h. Ask 'Say OK BOOK to confirm via Booker sub-agent'";
+
     const systemPrompt = `
-You are ${avenger} from Avengers.
-Role: ${AGENT_ROLES[avenger] || "Avenger Agent"}.
-Boss says: "${prompt}"
+You are ${avenger}.
+Role: ${AGENT_ROLES[avenger]}
+
+Boss Command: "${prompt}"
+Context: ${extraInstruction}
 
 Rules:
-1. Reply in ${avenger} character style, max 2 lines.
-2. Always add 1 line Role explanation and 1 line Realtime live status like video.
-3. If Boss says buy/shop/news/ticket/book - say "Opening ${prompt} portal sir" and we will handle search.
-4. End with "On duty Boss" or your style.
+1. Reply in ${avenger} style, short 2-3 lines, Telugu mix allowed.
+2. Must include: your Role + Realtime Live status (make realistic numbers for your website/task)
+3. For Pulse: mention pulse360news.in UP, posts today.
+4. For Verifact: mention verifact UP.
+5. For Shopper: mention scanning Amazon/Flipkart/Myntra background.
+6. For Ticket: mention comparison + Booker sub-agent.
+7. End always with actionable line.
 
-Format:
-[In-character reply]
-ROLE: ${AGENT_ROLES[avenger]}
-LIVE: [make a realistic live update with numbers for your role]
+IMPORTANT: Even if voice fails, this text will be shown, so be clear.
 `;
 
     for(const m of models){
@@ -48,16 +53,18 @@ LIVE: [make a realistic live update with numbers for your role]
         body: JSON.stringify({contents:[{parts:[{text: systemPrompt}]}]})
       });
       data = await r.json();
-      if(!data.error) break; // success ayithe break
+      if(!data.error) break;
     }
 
-    if(data?.error) return NextResponse.json({reply: `System Error: ${data.error.message} - On duty Boss!`});
+    if(data?.error){
+      return NextResponse.json({reply: `Error: ${data.error.message} - But I'm on duty Boss! Try again.`});
+    }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "On duty Boss!";
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "On duty Boss! Order executed.";
     return NextResponse.json({reply: text});
 
   }catch(e){
-    console.log(e);
-    return NextResponse.json({reply: "On duty Boss! Stark network glitch, but I'm here."});
+    console.error(e);
+    return NextResponse.json({reply: "Stark Network glitch Boss, but I'm here. On duty!"});
   }
 }
