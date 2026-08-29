@@ -101,22 +101,38 @@ export default function Page(){
       ]);
       await speakQueue(`Search complete sir. Best deals for ${order} found with images`, target);
     }
-    else if(target.id==="TRIP"){
-      setSearchMode("trip"); setActive(target);
-      const low = order.toLowerCase();
-      let key = "goa"; if(low.includes("manali")) key="manali"; else if(low.includes("hyd")) key="hyderabad"; else if(low.includes("goa")) key="goa";
-      let tripPlaces = PLACES_DB[key] || [{name:`Best in ${order}`, budget:"₹1000", img:`https://source.unsplash.com/500x300/?${encodeURIComponent(order)},travel`, desc:"Top attraction"},{name:`Second best in ${order}`, budget:"₹800", img:`https://source.unsplash.com/500x300/?${encodeURIComponent(order)},beach`, desc:"Must visit"}];
-      for(let t of ["Scanning best places...","Finding real images...","Calculating budget..."]){ setSearchItems(s=>[...s,t]); await new Promise(r=>setTimeout(r,500)); }
-      setSearchMode(null); setFinalDeals(tripPlaces.slice(0,2));
-      const total = tripPlaces[2]?.desc || `Total Budget around ${tripPlaces[0].budget} + stay. Best time Oct-Feb`;
-      setTypedReply(`TRIP PLAN for ${order}: ${total}`);
-      await speakQueue(`Trip plan for ${order} ready sir. Real ${key} places with images and budget showing`, target);
-      // Real AI call for details
-      try{
-        const r=await fetch("/api/avengers",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:`Give real trip plan for ${order} - 2 places, budget, best time`, avenger:"TRIP"})});
-        const d=await r.json(); await speakQueue(d.reply, target);
-      }catch{}
-    }
+    // TRIP GUIDE - Day wise real plan
+else if(target.id==="TRIP"){
+  setSearchMode("trip"); setActive(target);
+  setSearchItems(["Real-time searching Wikipedia...", `Finding ${order}...`, "Building day-wise plan..."]);
+  await new Promise(r=>setTimeout(r,800));
+  
+  try{
+    const r = await fetch("/api/avengers",{
+      method:"POST", 
+      headers:{"Content-Type":"application/json"}, 
+      body:JSON.stringify({prompt: order, avenger:"TRIP"})
+    });
+    const d = await r.json();
+    
+    // d.reply lo already total plan undi, dani nundi places teesi images tho chupistham
+    const placeName = d.detectedPlace || order.replace(/trip to/i,"").trim();
+    
+    setSearchMode(null);
+    setFinalDeals([
+      {name:`${placeName} - Main Attraction`, budget:"₹800-1500", img:`https://source.unsplash.com/500x300/?${encodeURIComponent(placeName)},tourist`, desc:"Top spot - Day 1 morning"},
+      {name:`${placeName} - Nature/Beach`, budget:"₹500-800", img:`https://source.unsplash.com/500x300/?${encodeURIComponent(placeName)},nature`, desc:"Sunset point - Day 1 evening"},
+      {name:`${placeName} - Local Food & Market`, budget:"₹1200", img:`https://source.unsplash.com/500x300/?${encodeURIComponent(placeName)},food`, desc:"Day 2 full day"},
+    ]);
+    
+    setTypedReply(d.reply); // Idi full trip plan: Day1, Day2, Budget, Best time
+    await speakQueue(d.reply.slice(0,200), target); // voice lo first 200 chars
+    
+  }catch{
+    setSearchMode(null);
+    setTypedReply(`Trip plan for ${order} offline - Day1 explore, Day2 nature, Budget ₹8k`);
+  }
+}
     else if(target.id==="TICKET"){
       setSearchMode("travel"); setActive(target);
       for(let t of ["Searching Buses...","Searching Trains...","Searching Flights & Hotels..."]){ setSearchItems(s=>[...s,t]); await new Promise(r=>setTimeout(r,600)); }
