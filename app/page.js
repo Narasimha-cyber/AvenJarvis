@@ -18,6 +18,7 @@ export default function Home(){
   const [deals, setDeals] = useState([]);
   const [fullReply, setFullReply] = useState("");
   const [isReporting, setIsReporting] = useState(false);
+  const [firstDone, setFirstDone] = useState(false);
   const audioRef = useRef(null);
   const lockRef = useRef(false);
   const activeAgent = AGENTS[activeIdx];
@@ -33,9 +34,9 @@ export default function Home(){
   const speakSequential = (t)=>{
     return new Promise((resolve)=>{
       if(!('speechSynthesis' in window)){ setTimeout(resolve, 1500); return; }
-      const u=new SpeechSynthesisUtterance(t.slice(0,180));
+      const u=new SpeechSynthesisUtterance(t.slice(0,200));
       u.rate=1.05; u.lang='en-IN';
-      u.onend = ()=>{ setTimeout(resolve, 300); };
+      u.onend = ()=>{ setTimeout(resolve, 250); };
       u.onerror = ()=>{ resolve(); };
       window.speechSynthesis.speak(u);
     });
@@ -43,63 +44,36 @@ export default function Home(){
 
   const sleep = (ms)=> new Promise(r=>setTimeout(r, ms));
 
-  const fetchAgentBest = async (agentId, query)=>{
-    try{
-      if(agentId==="SHOPPER"){
-        let term=query.replace(/shop|buy|trip|news|ticket/gi,"").trim()||"cargo pants";
-        if(/cargoes|cargos|cargo/i.test(term)) term="cargo pants";
-        const res=await fetch(`https://dummyjson.com/products/search?q=${encodeURIComponent(term)}&limit=5`,{cache:"no-store"});
-        const data=await res.json(); const p=data.products?.[0];
-        if(p) return `Eroju Best Deal - Platform Amazon lo ${p.title} ₹${Math.round(p.price*85)} ${p.rating}⭐ - ide best today LIVE REAL!`;
-        return `Eroju Best Deal - Amazon lo Cargo Pants ₹899 best today!`;
-      }
-      if(agentId==="TRIP"){ return `Eroju Best Trip - ${query||"Araku Valley"} best today! Best Travel Option: Train 17208 ₹280 24 seats BEST, Bus ₹650, Flight ₹2899 - Train best combo!`; }
-      if(agentId==="TICKET"){ return `Eroju Best Booking - Train 17208 ₹280 24 seats BEST combo ₹1800 Save ₹800 best today!`; }
-      if(agentId==="PULSE"){
-        try{
-          const start=Date.now(); const res=await fetch("https://pulse360news.in",{cache:"no-store"}); const ms=Date.now()-start;
-          const html=await res.text(); const titles=[...html.matchAll(/<a[^>]*>([^<]{15,70})<\/a>/gi)].map(m=>m[1].trim()).slice(0,2);
-          return `Eroju Website Scan - Site LIVE ${ms}ms! Today Update: "${titles[0]||"AP Monsoon"}" ide No.1 today!`;
-        }catch{ return `Eroju Website Scan - Site LIVE! Today Update: AP Monsoon trending!`; }
-      }
-      if(agentId==="NEWS"){ return `Eroju Best News - AP Monsoon No.1 trending today LIVE REAL!`; }
-      if(agentId==="VERIFACT"){ return `Eroju Best Verification - 100% real verified today!`; }
-      if(agentId==="JARVIS"){ return `Eroju Best Overall - Place ${query||"Araku"}, Deal ₹799, News trending - All best today!`; }
-    }catch{ return `Eroju Best - Live data ready!`; }
-    return `Eroju Best - Live data ready!`;
-  };
-
   const detectAgent = (low)=>{
     if(low.includes("pulse360")) return "PULSE";
     if(low.includes("verifact")||low.includes("fake")) return "VERIFACT";
     if(low.startsWith("news")||low.includes("news about")||low.includes("headlines")) return "NEWS";
-    if(low.includes("ticket")||/bus.*to|train.*to|flight.*to/.test(low)) return "TICKET";
-    // ANY VILLAGE / TRIP / PLACE - FINAL
-    if(low.includes("trip")||low.includes("travel")||low.includes("tour")||low.includes("visit")||low.includes("village")||low.includes("place")||low.includes("plan")||low.includes("ooty")||low.includes("araku")||low.includes("munnar")||low.includes("goa")||low.includes("manali")||low.includes("bheemavaram")||low.includes("lambasingi")||low.includes("maredumilli")||/^[a-z ]+ village$/i.test(low)||/about.*village|village.*about/i.test(low)) return "TRIP";
+    if(low.includes("ticket")||/bus.*to|train.*to|flight.*to|ticket/.test(low)) return "TICKET";
+    if(low.includes("trip")||low.includes("travel")||low.includes("tour")||low.includes("visit")||low.includes("village")||low.includes("place")||low.includes("plan")||low.includes("ooty")||/^[a-z ]+ village$/i.test(low)) return "TRIP";
     if(/(saree|chiffon|cargo|cargos|cargoes|pant|jean|trouser|shirt|tshirt|dress|kurta|shoe|sneaker|watch|phone|mobile|bag|laptop|earphone|kurti|deal|buy|price|under \d+)/i.test(low)) return "SHOPPER";
     return "JARVIS";
   };
 
+  // FIRST ROLL CALL - ONLY ONCE
   const startRollCall = async ()=>{
     if(lockRef.current) return;
     lockRef.current=true; setIsReporting(true);
-    window.speechSynthesis.cancel();
-    await sleep(200);
+    window.speechSynthesis.cancel(); await sleep(200);
     setDeals([]); setFullReply("");
     for(let i=0;i<AGENTS.length;i++){
       setActiveIdx(i); const ag=AGENTS[i];
-      const best = await fetchAgentBest(ag.id, "");
-      const text = `${ag.name} REPORTING BOSS! Naa work: ${ag.work}. ${best}`;
+      const text = `${ag.name} REPORTING BOSS! Naa work: ${ag.work}. Ready for orders!`;
       setTerminal(text); playTone(ag.color);
       await speakSequential(text);
     }
-    setTerminal("Roll Call Complete Boss - Andharu okari tarvatha okaru chepparu! Order ivvu Boss");
-    await speakSequential("Roll Call Complete Boss");
-    setIsReporting(false); lockRef.current=false;
+    setTerminal("All Agents Reported Boss! Ippudu mee order ivvandi - direct ga best agent active chestha!");
+    await speakSequential("All Agents Reported Boss");
+    setFirstDone(true); setIsReporting(false); lockRef.current=false;
   };
 
   useEffect(()=>{ setTimeout(startRollCall, 1000); },[]);
 
+  // ORDER FLOW - NEW - NO REPEAT - DIRECT POINT
   const handleOrder = async (txt)=>{
     const order=txt.trim(); if(!order) return;
     if(lockRef.current) return;
@@ -107,30 +81,33 @@ export default function Home(){
     if(low.includes("wake up")||low.includes("agents assemble")||low.includes("roll call")||low==="jarvis"){ startRollCall(); setInput(""); return; }
 
     lockRef.current=true; setIsReporting(true);
-    window.speechSynthesis.cancel();
-    await sleep(200);
+    window.speechSynthesis.cancel(); await sleep(200);
     setInput(""); setDeals([]); setFullReply("");
-    const targetId = detectAgent(low); const tIdx = AGENTS.findIndex(a=>a.id===targetId); const mainAg = AGENTS[tIdx];
 
+    const targetId = detectAgent(low);
+    const tIdx = AGENTS.findIndex(a=>a.id===targetId);
+    const mainAg = AGENTS[tIdx];
+
+    // STEP 1: JARVIS PRIME - DIRECT - NO EXTRA MATTER
     setActiveIdx(0);
-    const jBest = await fetchAgentBest("JARVIS", order);
-    let t1 = `JARVIS PRIME REPORTING BOSS! Naa work: ${AGENTS[0].work}. ${jBest} Order "${order}" ki best agent ${mainAg.name} selected!`;
+    let t1 = `JARVIS PRIME ACTIVE! Me order: "${order}" - Diniki best agent ${mainAg.name} - ${mainAg.role}. Ippudu ${mainAg.name} ni active chestunna!`;
     setTerminal(t1); playTone(AGENTS[0].color);
     await speakSequential(t1);
 
+    // STEP 2: BEST AGENT - DIRECT POINT KI
     setActiveIdx(tIdx);
-    const mBest = await fetchAgentBest(targetId, order);
-    let t2 = `${mainAg.name} REPORTING BOSS! Naa work: ${mainAg.work}. ${mBest}`;
+    let t2 = `${mainAg.name} ACTIVE! Meeru adigina plan: "${order}" - Ippudu direct ga real time correct details isthunna - fake kadu!`;
     setTerminal(t2); playTone(mainAg.color);
     await speakSequential(t2);
 
-    setTerminal(`${mainAg.name} full real data fetching for "${order}"...`);
+    // STEP 3: REAL DATA FETCH - REAL TRAIN + REAL BUDGET
+    setTerminal(`${mainAg.name} fetching REAL TIME data for "${order}" - Real train numbers, real budget...`);
     try{
-      const res=await fetch("/api/avengers",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:order, avenger:targetId, t:Date.now(), r:Math.random()})});
+      const res=await fetch("/api/avengers",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:order, avenger:targetId, t:Date.now()})});
       const data=await res.json();
       setFullReply(data.reply); setTerminal(data.reply);
       if(data.deals) setDeals(data.deals);
-      await speakSequential(data.reply.slice(0,220));
+      await speakSequential(data.reply.slice(0,250));
     }catch(e){ setTerminal("Error: "+e.message); }
     setIsReporting(false); lockRef.current=false;
   };
@@ -139,29 +116,27 @@ export default function Home(){
     <div style={{position:"fixed", inset:0, background:"#050507", color:"#fff", fontFamily:"monospace", display:"flex", flexDirection:"column"}}>
       <style>{`@keyframes orbPulse{0%,100%{box-shadow:0 0 25px currentColor,0 0 50px currentColor; transform:scale(1)}50%{box-shadow:0 0 35px currentColor,0 0 70px currentColor; transform:scale(1.06)}}`}</style>
       <div style={{height:"28px", background:"#0a0a0a", borderBottom:"1px solid #1a1a1a", display:"flex", alignItems:"center", padding:"0 10px", fontSize:"9px", justifyContent:"space-between"}}>
-        <div style={{color:"#facc15"}}>AVENGERS PROTOCOL • {activeAgent.name} • {isReporting?"REPORTING - WAIT BOSS":"READY"}</div>
-        <div style={{color:"#444"}}>Sequential - No Mix - Realtime</div>
+        <div style={{color:"#facc15"}}>AVENGERS PROTOCOL • {activeAgent.name} • {isReporting?"ACTIVE - POINT KI":"READY"} • {firstDone?"DIRECT MODE":"FIRST ROLL"}</div>
+        <div style={{color:"#444"}}>Real Trains - Real Budget</div>
       </div>
       <div style={{height:"40px", background:"#070708", borderBottom:"1px solid #111", display:"flex", alignItems:"center", gap:"5px", padding:"0 8px", overflowX:"auto"}}>
         {AGENTS.map((a,i)=>(
           <div key={a.id} style={{minWidth:"60px", height:"24px", borderRadius:"3px", border: i===activeIdx?`1px solid ${a.color}`:"1px solid #222", background: i===activeIdx?`${a.color}18`:"#0f0f0f", color: i===activeIdx?a.color:"#555", fontSize:"7px", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:"bold", opacity: isReporting && i===activeIdx?1: isReporting?0.4: i===activeIdx?1:0.6}}>{a.name.split(" ")[0]}</div>
         ))}
       </div>
-      <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"12px"}}>
+      <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"12px", overflowY:"auto"}}>
         <div style={{width:"96px", height:"96px", borderRadius:"50%", background:`radial-gradient(circle at 32% 28%, #fff 0%, ${activeAgent.color} 22%, ${activeAgent.color} 70%)`, border:`2px solid ${activeAgent.color}`, animation:"orbPulse 1.8s infinite", color:activeAgent.color, display:"flex", alignItems:"center", justifyContent:"center"}}><div style={{width:"18px", height:"18px", background:"#fff", borderRadius:"50%"}}></div></div>
         <div style={{marginTop:"14px", fontSize:"14px", fontWeight:"bold", letterSpacing:"4px", color:activeAgent.color, textShadow:`0 0 16px ${activeAgent.color}`}}>{activeAgent.name}</div>
-        <div style={{fontSize:"8px", color:"#666", marginTop:"4px"}}>{activeAgent.role} - {isReporting?"REPORTING BOSS - OKADU COMPLETE AYYAKA INKODU":"READY"}</div>
-        <div style={{marginTop:"16px", width:"100%", maxWidth:"700px", background:"#0a0a0a", border:`1px solid ${activeAgent.color}40`, borderRadius:"6px", padding:"10px 12px", minHeight:"60px"}}>
-          <div style={{fontSize:"11px", color:"#ccc", lineHeight:"1.5", whiteSpace:"pre-wrap"}}><span style={{color:activeAgent.color}}>{isReporting?"● REPORTING: ":"> "}</span>{terminal}</div>
-          {fullReply && fullReply!==terminal && (<div style={{marginTop:"8px", fontSize:"10px", color:"#888", whiteSpace:"pre-wrap", borderTop:"1px solid #1a1a1a", paddingTop:"6px", maxHeight:"120px", overflowY:"auto"}}>{fullReply.slice(0,700)}</div>)}
+        <div style={{fontSize:"8px", color:"#666", marginTop:"4px"}}>{activeAgent.role}</div>
+        <div style={{marginTop:"16px", width:"100%", maxWidth:"750px", background:"#0a0a0a", border:`1px solid ${activeAgent.color}40`, borderRadius:"6px", padding:"12px", minHeight:"60px"}}>
+          <div style={{fontSize:"11px", color:"#ccc", lineHeight:"1.6", whiteSpace:"pre-wrap"}}>{terminal}</div>
         </div>
-        {deals.length>0 && (<div style={{marginTop:"10px", display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"6px", width:"100%", maxWidth:"700px"}}>{deals.map((d,i)=>(<div key={i} style={{background:"#fff", color:"#000", borderRadius:"6px", padding:"4px", border: d.best?"2px solid #22c55e":"1px solid #ccc"}}><img src={d.image} alt="" style={{width:"100%", height:"44px", objectFit:"contain"}}/><div style={{fontSize:"8px", fontWeight:"bold"}}>{d.title.slice(0,20)}</div><div style={{fontSize:"10px", color:"green"}}>₹{d.price}</div></div>))}</div>)}
+        {deals.length>0 && (<div style={{marginTop:"10px", display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"6px", width:"100%", maxWidth:"750px"}}>{deals.map((d,i)=>(<div key={i} style={{background:"#fff", color:"#000", borderRadius:"6px", padding:"4px", border: d.best?"2px solid #22c55e":"1px solid #ccc"}}><img src={d.image} alt="" style={{width:"100%", height:"44px", objectFit:"contain"}}/><div style={{fontSize:"8px", fontWeight:"bold"}}>{d.title.slice(0,22)}</div><div style={{fontSize:"10px", color:"green"}}>₹{d.price}</div></div>))}</div>)}
       </div>
       <div style={{height:"56px", background:"#08080a", borderTop:`1px solid ${activeAgent.color}50`, display:"flex", alignItems:"center", padding:"0 10px", gap:"8px"}}>
         <span style={{color:activeAgent.color}}>❯</span>
-        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!isReporting&&handleOrder(input)} placeholder={isReporting?'WAIT BOSS - okadu chepthunnadu...':'Type: cargoes / ooty trip plan / Bheemavaram village / news about AP'} style={{flex:1, background:"transparent", border:"none", outline:"none", color:"#fff", fontSize:"11px", fontFamily:"monospace"}} disabled={isReporting}/>
-        <button onClick={()=>!isReporting&&handleOrder(input)} style={{background: isReporting?"#333":activeAgent.color, color: isReporting?"#666":"#000", border:"none", borderRadius:"4px", padding:"7px 12px", fontSize:"10px", fontWeight:"bold"}} disabled={isReporting}>{isReporting?"WAIT":"EXECUTE"}</button>
-        <button onClick={()=>!isReporting&&startRollCall()} disabled={isReporting} style={{background:"#111", border:`1px solid ${activeAgent.color}`, color:activeAgent.color, borderRadius:"4px", padding:"7px 8px", fontSize:"9px"}}>ROLL CALL</button>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!isReporting&&handleOrder(input)} placeholder={isReporting?'FETCHING REAL DATA...':'Type: Ooty trip plan / cargoes / Bheemavaram village'} style={{flex:1, background:"transparent", border:"none", outline:"none", color:"#fff", fontSize:"11px", fontFamily:"monospace"}} disabled={isReporting}/>
+        <button onClick={()=>!isReporting&&handleOrder(input)} style={{background: isReporting?"#333":activeAgent.color, color: isReporting?"#666":"#000", border:"none", borderRadius:"4px", padding:"7px 12px", fontSize:"10px", fontWeight:"bold"}} disabled={isReporting}>{isReporting?"FETCHING...":"EXECUTE"}</button>
       </div>
     </div>
   );
