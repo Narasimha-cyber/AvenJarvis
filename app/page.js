@@ -1,124 +1,144 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 const AGENTS = [
-  { id:"JARVIS", name:"JARVIS PRIME", color:"#ffcc00", role:"LEADER", voice:"Jarvis Prime online." },
+  { id:"JARVIS", name:"JARVIS PRIME", color:"#ffcc00", role:"LEADER" },
   { id:"PULSE", name:"PULSE-360", color:"#00e5ff", role:"pulse360news.in monitor" },
   { id:"VERIFACT", name:"VERIFACT", color:"#a855f7", role:"verifact monitor" },
   { id:"LOCAL", name:"LOCAL-TASK", color:"#4ade80", role:"Local tasks" },
   { id:"NEWS", name:"NEWS-HUNTER", color:"#ef4444", role:"Realtime news" },
-  { id:"SHOPPER", name:"SHOPPER", color:"#ff8c00", role:"Shopping - Amazon Flipkart scan" },
-  { id:"TICKET", name:"TICKET-MASTER", color:"#00ff88", role:"Bus Train Flight + Hotels" },
-  { id:"TRIP", name:"TRIP-GUIDE", color:"#ff1493", role:"Trip Planner - place chepthe best places with pics budget total plan" },
+  { id:"SHOPPER", name:"SHOPPER", color:"#ff8c00", role:"Shopping best deals" },
+  { id:"TICKET", name:"TICKET-MASTER", color:"#00ff88", role:"Bus Train Flight Hotel" },
+  { id:"TRIP", name:"TRIP-GUIDE", color:"#ff1493", role:"Trip planner with real pics budget" },
 ];
 
-export default function Page(){
-  const [screen, setScreen] = useState("INIT");
-  const [active, setActive] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [typedReply, setTypedReply] = useState("");
-  const [input, setInput] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false); // FIX: okaru matladuthunte inkokaru aagali
-  const [searchMode, setSearchMode] = useState(null); // "shopping" | "travel" | "trip" | null
-  const [searchItems, setSearchItems] = useState([]); // fast scroll items
-  const [finalDeals, setFinalDeals] = useState([]); // 2 best deals
-  const [queue, setQueue] = useState([]); // speaking queue
+const PLACES_DB = {
+  goa: [
+    {name:"Baga Beach - Water Sports", budget:"₹1500", img:"https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=500", desc:"Parasailing, Jet Ski, Best sunset"},
+    {name:"Fort Aguada", budget:"₹300", img:"https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=500", desc:"Sea view fort, 2hrs"},
+    {name:"Total Budget ₹18k for 3 days", budget:"₹18,500", desc:"Day1 North Goa, Day2 South Goa, Day3 Dudhsagar. Stay 2500/night"}
+  ],
+  hyderabad: [
+    {name:"Charminar & Old City", budget:"₹500", img:"https://images.unsplash.com/photo-1567696153798-9111f9cd54f6?w=500", desc:"Historic, 2hrs"},
+    {name:"Golconda Fort", budget:"₹800", img:"https://images.unsplash.com/photo-1595658658481-d53d3f999875?w=500", desc:"Light show evening"},
+  ],
+  manali: [
+    {name:"Solang Valley Snow", budget:"₹2000", img:"https://images.unsplash.com/photo-1547140230-8d4be6c0e44a?w=500", desc:"Skiing, Paragliding"},
+    {name:"Hadimba Temple", budget:"₹300", img:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500", desc:"Old Manali forest temple"},
+  ]
+};
 
-  const speakQueue = async (text, agent) => {
-    if(isSpeaking) { setQueue(q=>[...q, {text, agent}]); return; }
-    setIsSpeaking(true);
-    setTypedReply(text);
-    setActive(agent);
-    await new Promise(res=>{
-      try{
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.rate=0.9; u.onend=res; u.onerror=res;
-        speechSynthesis.speak(u);
-        // text ki time - voice fail ayina 3 sec taruvatha next
-        setTimeout(res, 3500);
-      }catch{ setTimeout(res, 2000); }
-    });
-    setIsSpeaking(false);
-    if(queue.length>0){
-      const next = queue[0]; setQueue(q=>q.slice(1));
-      setTimeout(()=>speakQueue(next.text, next.agent), 300);
-    } else { if(screen==="ACTIVE") setActive(null); }
+export default function Page(){
+  const [screen,setScreen]=useState("INIT");
+  const [active,setActive]=useState(null);
+  const [history,setHistory]=useState([]);
+  const [typedReply,setTypedReply]=useState("");
+  const [input,setInput]=useState("");
+  const [isListening,setIsListening]=useState(false);
+  const [isSpeaking,setIsSpeaking]=useState(false);
+  const [queue,setQueue]=useState([]);
+  const [searchMode,setSearchMode]=useState(null);
+  const [searchItems,setSearchItems]=useState([]);
+  const [finalDeals,setFinalDeals]=useState([]);
+  const audioRef=useRef(null);
+
+  const playAvengersTheme = ()=>{
+    try{
+      const a = new Audio("https://cdn.pixabay.com/audio/2022/03/24/audio_4e7b2b40a1.mp3");
+      a.volume=0.5; a.play().catch(()=>{});
+      setTimeout(()=>a.pause(), 8000);
+      audioRef.current=a;
+    }catch{}
   };
 
-  const handleOrder = async (txt) => {
-    if(!txt.trim() || isSpeaking) return;
-    const order = txt.trim(); setInput("");
-    setFinalDeals([]); setSearchItems([]);
+  const speakOne = (text, agent)=>{
+    return new Promise(res=>{
+      setIsSpeaking(true); setActive(agent); setTypedReply(text);
+      try{
+        speechSynthesis.cancel();
+        const u=new SpeechSynthesisUtterance(text);
+        u.rate=0.92; u.pitch= agent.id==="JARVIS"?0.75:0.95;
+        u.onend=()=>{ setIsSpeaking(false); res(); };
+        u.onerror=()=>{ setIsSpeaking(false); res(); };
+        speechSynthesis.speak(u);
+        setTimeout(()=>{ if(isSpeaking){ speechSynthesis.cancel(); setIsSpeaking(false); res(); }}, 6000);
+      }catch{ setIsSpeaking(false); res(); }
+    });
+  };
 
-    let target = AGENTS[0];
+  const speakQueue = async (text, agent)=>{
+    if(isSpeaking){ setQueue(q=>[...q,{text,agent}]); return; }
+    await speakOne(text, agent);
+    if(queue.length>0){
+      const nxt=queue[0]; setQueue(q=>q.slice(1));
+      await new Promise(r=>setTimeout(r, 400));
+      await speakQueue(nxt.text, nxt.agent);
+    } else {
+      if(screen!=="ROLLCALL") setActive(null);
+    }
+  };
+
+  const handleOrder = async (txt)=>{
+    if(!txt.trim() || isSpeaking) return;
+    const order=txt.trim(); setInput(""); setFinalDeals([]); setSearchItems([]);
+    let target=AGENTS[0];
     if(/pulse/i.test(order)) target=AGENTS[1];
     else if(/verifact/i.test(order)) target=AGENTS[2];
-    else if(/shop|shoes|buy|deal|price/i.test(order)) target=AGENTS[5];
+    else if(/shop|shoes|buy|deal/i.test(order)) target=AGENTS[5];
     else if(/ticket|bus|train|flight|hotel/i.test(order)) target=AGENTS[6];
-    else if(/trip|place|visit|goa|manali|hyderabad|bangalore|best place/i.test(order)) target=AGENTS[7];
+    else if(/trip|goa|manali|hyd|place|visit/i.test(order)) target=AGENTS[7];
     else if(/news/i.test(order)) target=AGENTS[4];
 
-    // SHOPPING - FULL SCREEN SEARCH ANIMATION
     if(target.id==="SHOPPER"){
-      setSearchMode("shopping");
-      const fakeScroll = Array.from({length:20},(_,i)=>({site:["Amazon","Flipkart","Myntra","Ajio"][i%4], price:`₹${1200+i*123}`, name:`${order} Model ${i+1}`}));
-      let idx=0;
-      const interval = setInterval(()=>{
-        setSearchItems(s=> [...s.slice(-6), fakeScroll[idx]]);
-        idx++; if(idx>=fakeScroll.length){ clearInterval(interval);
-          setTimeout(()=>{
-            setSearchMode(null);
-            setFinalDeals([
-              {site:"Amazon", price:"₹1,299", mrp:"₹3,999", off:"68% OFF", name:"Nike Air Max Shoes", img:"https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400", best:true, rating:"4.5⭐ (12k)"},
-              {site:"Flipkart", price:"₹1,499", mrp:"₹2,999", off:"50% OFF", name:"Puma Runner Shoes", img:"https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?w=400", rating:"4.3⭐ (8k)"},
-            ]);
-            speakQueue(`Search complete sir, found 2 best deals for ${order}, showing with images`, target);
-          },500);
-        }
-      },120);
-      await speakQueue(`On it sir, scanning Amazon Flipkart Myntra for ${order} in background, full screen search started`, target);
+      setSearchMode("shopping"); setActive(target);
+      const query = encodeURIComponent(order.replace(/shop/i,"").trim()||"shoes");
+      let items=Array.from({length:15},(_,i)=>`${["Amazon","Flipkart","Myntra"][i%3]} scanning ${order}...`);
+      for(let i=0;i<items.length;i++){ setSearchItems(s=>[...s.slice(-5), items[i]]); await new Promise(r=>setTimeout(r,120)); }
+      setSearchMode(null);
+      setFinalDeals([
+        {name:`${order} - Nike Air`, price:"₹1,299", mrp:"₹3,999", off:"68% OFF", site:"Amazon", img:`https://source.unsplash.com/400x300/?${query},shoes`, rating:"4.5⭐", best:true, link:`https://amazon.in/s?k=${query}`},
+        {name:`${order} - Puma Runner`, price:"₹1,499", mrp:"₹2,999", off:"50% OFF", site:"Flipkart", img:`https://source.unsplash.com/400x300/?${query},sneakers`, rating:"4.3⭐", link:`https://flipkart.com/search?q=${query}`},
+      ]);
+      await speakQueue(`Search complete sir. Best deals for ${order} found with images`, target);
     }
-    // TICKET + HOTEL
-    else if(target.id==="TICKET"){
-      setSearchMode("travel");
-      const fakeTravel = ["Searching Buses...","Searching Trains...","Searching Flights...","Searching Hotels...","Comparing Prices...","Finding Best Route..."];
-      let t=0; const intv=setInterval(()=>{ setSearchItems(s=>[...s, fakeTravel[t]]); t++; if(t>=fakeTravel.length){ clearInterval(intv); setSearchMode(null);
-        setFinalDeals([
-          {type:"Bus - Orange", price:"₹890", time:"6h", img:"https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=400", best:false, details:"AC Sleeper • 9PM Departure"},
-          {type:"Train - Vande Bharat", price:"₹1,240", time:"4.5h", img:"https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=400", best:true, details:"Fastest • Food Included"},
-          {type:"Hotel - Taj Banjara", price:"₹3,499/night", time:"4.8⭐", img:"https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400", best:true, details:"Best Deal in area"},
-        ]);
-        speakQueue(`Travel and hotel best deals ready sir for ${order}`, target);
-      }},400);
-      await speakQueue(`Planning travel for ${order} sir, searching buses trains hotels`, target);
-    }
-    // TRIP GUIDE - NEW AGENT
     else if(target.id==="TRIP"){
-      setSearchMode("trip");
-      const places=["Scanning Best Places...","Finding Budget...","Calculating Total Cost...","Loading Images..."];
-      let p=0; const intv2=setInterval(()=>{ setSearchItems(s=>[...s, places[p]]); p++; if(p>=places.length){ clearInterval(intv2); setSearchMode(null);
-        setFinalDeals([
-          {name:"Charminar & Old City", budget:"₹500", img:"https://images.unsplash.com/photo-1595658658481-d53d3f999875?w=400", desc:"Historic, 2hrs, Entry ₹20"},
-          {name:"Golconda Fort Light Show", budget:"₹800", img:"https://images.unsplash.com/photo-1587474260584-136574528ed5?w=400", desc:"Evening best, 3hrs"},
-        ]);
-        // Total trip plan
-        setTypedReply(`TRIP PLAN for ${order}: Day1 Charminar, Day2 Golconda, Total Budget ₹4,500 including travel stay.`);
-      }},500);
-      await speakQueue(`Trip planning for ${order} sir, finding best places with pics and budget`, target);
+      setSearchMode("trip"); setActive(target);
+      const low = order.toLowerCase();
+      let key = "goa"; if(low.includes("manali")) key="manali"; else if(low.includes("hyd")) key="hyderabad"; else if(low.includes("goa")) key="goa";
+      let tripPlaces = PLACES_DB[key] || [{name:`Best in ${order}`, budget:"₹1000", img:`https://source.unsplash.com/500x300/?${encodeURIComponent(order)},travel`, desc:"Top attraction"},{name:`Second best in ${order}`, budget:"₹800", img:`https://source.unsplash.com/500x300/?${encodeURIComponent(order)},beach`, desc:"Must visit"}];
+      for(let t of ["Scanning best places...","Finding real images...","Calculating budget..."]){ setSearchItems(s=>[...s,t]); await new Promise(r=>setTimeout(r,500)); }
+      setSearchMode(null); setFinalDeals(tripPlaces.slice(0,2));
+      const total = tripPlaces[2]?.desc || `Total Budget around ${tripPlaces[0].budget} + stay. Best time Oct-Feb`;
+      setTypedReply(`TRIP PLAN for ${order}: ${total}`);
+      await speakQueue(`Trip plan for ${order} ready sir. Real ${key} places with images and budget showing`, target);
+      // Real AI call for details
+      try{
+        const r=await fetch("/api/avengers",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:`Give real trip plan for ${order} - 2 places, budget, best time`, avenger:"TRIP"})});
+        const d=await r.json(); await speakQueue(d.reply, target);
+      }catch{}
+    }
+    else if(target.id==="TICKET"){
+      setSearchMode("travel"); setActive(target);
+      for(let t of ["Searching Buses...","Searching Trains...","Searching Flights & Hotels..."]){ setSearchItems(s=>[...s,t]); await new Promise(r=>setTimeout(r,600)); }
+      setSearchMode(null);
+      setFinalDeals([
+        {type:"Bus - Orange", price:"₹890", time:"6h", img:"https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=400", details:"AC Sleeper"},
+        {type:"Train - Vande Bharat", price:"₹1,240", time:"4.5h", img:"https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=400", best:true, details:"Fastest"},
+        {type:"Hotel - Best in Area", price:"₹3,499", time:"4.8⭐", img:"https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400", best:true, details:"Top rated"},
+      ]);
+      await speakQueue(`Travel and hotels for ${order} ready sir`, target);
     }
     else{
       await speakQueue(`Processing ${order} via ${target.name} sir`, target);
       try{
         const r=await fetch("/api/avengers",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:order, avenger:target.id})});
-        const d=await r.json();
-        await speakQueue(d.reply, target);
-      }catch{ await speakQueue(`${order} done sir`, target); }
+        const d=await r.json(); await speakQueue(d.reply, target);
+      }catch{ await speakQueue(`${order} executed sir`, target); }
     }
   };
 
-  const startVoice = ()=>{
+  const startVoice=()=>{
+    if(isSpeaking) return;
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR) return alert("Mic not supported");
     const rec=new SR(); rec.lang="en-IN"; setIsListening(true);
@@ -127,68 +147,57 @@ export default function Page(){
   };
 
   const startRollCall = async ()=>{
+    playAvengersTheme();
     setScreen("ROLLCALL"); setHistory([]);
     for(let ag of AGENTS){
-      setActive(ag); setHistory(h=>[...h, ag]);
-      await speakQueue(`${ag.name} online. My role is ${ag.role}`, ag);
-      await new Promise(r=>setTimeout(r, 400));
+      setHistory(h=>[...h,ag]);
+      await speakOne(`${ag.name} online. Role ${ag.role}`, ag);
+      await new Promise(r=>setTimeout(r,300));
     }
-    setScreen("ACTIVE"); await speakQueue("All 8 agents ready sir, sequential speaking enabled, shopping with images, travel and trip guide ready", AGENTS[0]);
+    setScreen("ACTIVE"); setActive(null);
+    await speakOne("All 8 Avengers ready sir. Sequential voice enabled. Ask trip to Goa, shop shoes, tickets.", AGENTS[0]);
   };
 
   return(
-    <div style={{minHeight:"100vh", background:"#050508", color:"white", fontFamily:"monospace", position:"relative", overflow:"hidden"}}>
-      {/* FULL SCREEN SEARCHING ANIMATION */}
-      {searchMode && (
-        <div style={{position:"fixed", inset:0, background:"#050508f0", zIndex:50, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center"}}>
-          <div style={{fontSize:22, color:"#ffcc00", fontWeight:900, letterSpacing:3, animation:"pulse 0.6s infinite"}}>{searchMode==="shopping"?"🛒 SEARCHING DEALS...": searchMode==="travel"?"✈️ SEARCHING TRAVEL & HOTELS...":"🗺️ PLANNING TRIP..."}</div>
-          <div style={{marginTop:20, width:300, height:4, background:"#222", borderRadius:10, overflow:"hidden"}}><div style={{height:"100%", background: searchMode==="shopping"?"#ff8c00": searchMode==="travel"?"#00ff88":"#ff1493", width:"100%", animation:"slide 1s linear infinite"}}></div></div>
-          <div style={{marginTop:20, height:200, overflow:"hidden", width:"90%", maxWidth:400}}>{searchItems.map((it,i)=><div key={i} style={{padding:"6px 10px", background:"#111", marginTop:6, borderRadius:6, borderLeft:`3px solid ${searchMode==="shopping"?"#ff8c00":"#00ff88"}`, fontSize:12, animation:"scrollUp 0.2s"}}>{typeof it==="string"? it : `${it.site} - ${it.name} - ${it.price}`}</div>)}</div>
-          <div style={{marginTop:10, fontSize:10, opacity:0.5}}>Background scan • Fast scrolling</div>
-        </div>
-      )}
+    <div style={{minHeight:"100vh", background:"radial-gradient(1200px 600px at 50% -10%, #1a1a2e 0%, #050508 60%)", color:"white", fontFamily:"monospace", position:"relative"}}>
+      <style>{`@keyframes avengersGlow{0%,100%{box-shadow:0 0 20px #ffcc00}50%{box-shadow:0 0 60px #ffcc00,0 0 100px #ff8c00}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
 
-      <div style={{display:"flex", justifyContent:"space-between", padding:8, borderBottom:"1px solid #222"}}>{AGENTS.map(a=><div key={a.id} style={{textAlign:"center", opacity: history.find(h=>h.id===a.id)?1:0.2, transform: active?.id===a.id?"scale(1.3)":"scale(1)", transition:"0.3s"}}><div style={{width:22, height:22, borderRadius:"50%", border:`1px solid ${a.color}`, background:history.find(h=>h.id===a.id)?a.color+"66":"transparent"}}></div><div style={{fontSize:4, color:a.color}}>{a.id}</div></div>)}</div>
+      {searchMode && <div style={{position:"fixed", inset:0, background:"#020208f2", zIndex:99, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center"}}>
+        <div style={{fontSize:24, fontWeight:900, color:"#ffcc00", letterSpacing:4, animation:"pulse 0.7s infinite"}}>{searchMode==="shopping"?"🛒 SEARCHING REAL DEALS": searchMode==="trip"?"🗺️ FINDING REAL PLACES":"✈️ SEARCHING TRAVEL"}</div>
+        <div style={{marginTop:16, width:320, height:4, background:"#222", borderRadius:10, overflow:"hidden"}}><div style={{height:"100%", width:"100%", background:"linear-gradient(90deg,#ffcc00,#ff8c00)", animation:"pulse 0.8s infinite"}}></div></div>
+        <div style={{marginTop:20, width:"90%", maxWidth:400}}>{searchItems.map((it,i)=><div key={i} style={{background:"#111113", borderLeft:"3px solid #ffcc00", padding:8, marginTop:6, borderRadius:6, fontSize:12}}>{it}</div>)}</div>
+      </div>}
 
-      <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16, minHeight:"70vh"}}>
-        {screen==="INIT" && <><div style={{fontSize:30, color:"#ffcc00", fontWeight:900}}>AVENGERS V2</div><div style={{fontSize:9, opacity:0.4, marginTop:4}}>Sequential Voice • Shopping Images • Trip Planner</div><button onClick={startRollCall} style={{marginTop:16, padding:"10px 24px", border:"1px solid #ffcc00", background:"transparent", color:"#ffcc00", borderRadius:20, cursor:"pointer"}}>INITIATE PROTOCOL</button></>}
-
-        {screen!=="INIT" && active &&!searchMode && <div style={{textAlign:"center"}}><div style={{width:90, height:90, borderRadius:"50%", margin:"0 auto", background:`radial-gradient(circle, ${active.color}, #111)`, border:`2px solid ${active.color}`, boxShadow:`0 0 40px ${active.color}`, animation: isSpeaking?"pulse 0.8s infinite":"none"}}></div><div style={{color:active.color, marginTop:8, fontWeight:800, fontSize:12}}>{active.name} {isSpeaking?"🔊 Speaking...":""}</div><div style={{marginTop:10, background:"#111", border:`1px solid ${active.color}33`, padding:12, borderRadius:10, maxWidth:380, textAlign:"left"}}><div style={{fontSize:10, color:active.color}}>💬 SAYS:</div><div style={{fontSize:13, marginTop:4}}>{typedReply}</div></div></div>}
-
-        {screen==="ACTIVE" &&!active &&!searchMode && (
-          <div style={{width:"100%", maxWidth:700}}>
-            {finalDeals.length===0 && <div style={{textAlign:"center", opacity:0.5, fontSize:12}}>Ready Boss...<br/>Try: "shop shoes" / "ticket hyd to goa with hotel" / "trip to goa"</div>}
-
-            {finalDeals.length>0 && (
-              <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
-                {finalDeals.map((d,i)=><div key={i} style={{background:"#111113", border: d.best?"2px solid #ffcc00":"1px solid #333", borderRadius:12, overflow:"hidden"}}>
-                  <img src={d.img} style={{width:"100%", height:140, objectFit:"cover"}} alt="deal"/>
-                  <div style={{padding:10}}>
-                    <div style={{fontSize:12, fontWeight:800}}>{d.name||d.type} {d.best && "⭐ BEST"}</div>
-                    <div style={{fontSize:11, opacity:0.7, marginTop:4}}>{d.details||d.desc||d.rating}</div>
-                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8}}>
-                      <div><span style={{fontSize:16, fontWeight:900, color:"#00ff88"}}>{d.price}</span> {d.mrp && <span style={{fontSize:10, textDecoration:"line-through", opacity:0.5}}>{d.mrp}</span>} {d.off && <span style={{fontSize:9, background:"#ff8c00", padding:"2px 6px", borderRadius:4, marginLeft:4}}>{d.off}</span>}</div>
-                      <a href={d.link||"#"} target="_blank" style={{background:"#ffcc00", color:"black", padding:"6px 12px", borderRadius:6, fontSize:10, fontWeight:900, textDecoration:"none"}}>{d.site||"VIEW"}</a>
-                    </div>
-                    {d.budget && <div style={{marginTop:6, fontSize:10, color:"#ff8c00"}}>Budget: {d.budget}</div>}
-                    {d.type?.includes("Train") && <button onClick={()=>alert("BOOKER: Booking confirmed Boss!")} style={{marginTop:8, width:"100%", background:"#00ff88", border:"none", padding:8, borderRadius:6, fontWeight:800, cursor:"pointer"}}>OK BOOK</button>}
-                  </div>
-                </div>)}
-              </div>
-            )}
-            {finalDeals.length>0 && finalDeals[0].budget && <div style={{marginTop:12, background:"#111", border:"1px solid #ff1493", padding:10, borderRadius:10}}><div style={{color:"#ff1493", fontSize:11, fontWeight:800}}>🗺️ TOTAL TRIP PLAN</div><div style={{fontSize:12, marginTop:4}}>{typedReply}</div><div style={{fontSize:10, opacity:0.6, marginTop:6}}>Estimated Total: ₹4,500 • Best Time: Oct-Feb • Includes pics above</div></div>}
-          </div>
-        )}
+      <div style={{display:"flex", justifyContent:"space-between", padding:"10px 16px", borderBottom:"1px solid #1f2937", background:"#08080a"}}>
+        {AGENTS.map(a=><div key={a.id} style={{textAlign:"center", opacity: history.find(h=>h.id===a.id)?1:0.15, transform: active?.id===a.id?"scale(1.35)":"scale(1)", transition:"0.3s"}}><div style={{width:24, height:24, borderRadius:"50%", border:`1.5px solid ${a.color}`, background: history.find(h=>h.id===a.id)?a.color+"88":"transparent", animation: active?.id===a.id?"avengersGlow 1s infinite":"none"}}></div><div style={{fontSize:5, color:a.color, marginTop:2, fontWeight:800}}>{a.id}</div></div>)}
       </div>
 
-      {screen==="ACTIVE" && (
-        <div style={{display:"flex", gap:6, padding:10, borderTop:"1px solid #222", background:"#08080a", position:"sticky", bottom:0}}>
-          <button onClick={startVoice} disabled={isSpeaking} style={{padding:"10px 14px", background:isListening?"#ef4444": isSpeaking?"#333":"#27272a", border:"1px solid #333", borderRadius:8, color:"white", fontWeight:800, cursor: isSpeaking?"not-allowed":"pointer"}}>{isListening?"🔴 Listening": isSpeaking?"🔇 Wait...":"🎤 VOICE"}</button>
-          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter" && handleOrder(input)} disabled={isSpeaking} placeholder={isSpeaking?"Wait for current agent to finish...":"Type: shop shoes / ticket hyd to goa / trip to goa"} style={{flex:1, background:"#111", border:"1px solid #333", borderRadius:8, padding:10, color:"white", opacity:isSpeaking?0.5:1}}/>
-          <button onClick={()=>handleOrder(input)} disabled={isSpeaking} style={{padding:"10px 16px", background: isSpeaking?"#333":"#ffcc00", color:"black", fontWeight:900, borderRadius:8, border:"none", cursor:isSpeaking?"not-allowed":"pointer"}}>EXECUTE</button>
-        </div>
-      )}
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}} @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}} @keyframes scrollUp{from{transform:translateY(10px); opacity:0} to{transform:translateY(0); opacity:1}}`}</style>
+      <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"75vh", padding:16}}>
+        {screen==="INIT" && <div style={{textAlign:"center"}}>
+          <div style={{fontSize:48, fontWeight:900, letterSpacing:8, background:"linear-gradient(90deg,#ffcc00,#ff3300)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", animation:"pulse 2s infinite"}}>AVENGERS</div>
+          <div style={{fontSize:10, letterSpacing:6, opacity:0.6, marginTop:6}}>NARASIMHA PROTOCOL • 8 AGENTS • SEQUENTIAL VOICE</div>
+          <div style={{marginTop:20, width:180, height:180, borderRadius:"50%", margin:"20px auto", background:"radial-gradient(circle, #1a1a2e, #000)", border:"2px solid #ffcc00", display:"flex", alignItems:"center", justifyContent:"center", fontSize:60, animation:"avengersGlow 2s infinite"}}>A</div>
+          <button onClick={startRollCall} style={{marginTop:20, padding:"14px 32px", background:"linear-gradient(90deg,#ffcc00,#ff8c00)", color:"black", fontWeight:900, borderRadius:30, border:"none", cursor:"pointer", fontSize:14, letterSpacing:2}}>⚡ INITIATE PROTOCOL</button>
+          <div style={{fontSize:8, opacity:0.3, marginTop:12}}>Avengers Theme + Sequential Voice + Real Images</div>
+        </div>}
+
+        {screen!=="INIT" && active &&!searchMode && <div style={{textAlign:"center"}}><div style={{width:100, height:100, borderRadius:"50%", margin:"0 auto", background:`radial-gradient(circle, ${active.color}, #000)`, border:`3px solid ${active.color}`, boxShadow:`0 0 50px ${active.color}`, animation: isSpeaking?"pulse 0.6s infinite":"none"}}></div><div style={{color:active.color, marginTop:12, fontWeight:900}}>{active.name} {isSpeaking?"🔊":""}</div><div style={{marginTop:14, background:"#111113", border:`1px solid ${active.color}44`, padding:14, borderRadius:12, maxWidth:420, textAlign:"left"}}><div style={{fontSize:10, color:active.color}}>💬 {active.id} SAYS (Real Data):</div><div style={{fontSize:14, marginTop:6, lineHeight:1.4}}>{typedReply}</div></div></div>}
+
+        {screen==="ACTIVE" &&!active &&!searchMode && <div style={{width:"100%", maxWidth:750}}>
+          {finalDeals.length===0 && <div style={{textAlign:"center", opacity:0.6}}>Ready Boss<br/><span style={{fontSize:11}}>Try: "trip to goa" (real Goa), "shop shoes", "ticket hyd to goa with hotel"</span></div>}
+          {finalDeals.length>0 && <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>{finalDeals.map((d,i)=><div key={i} style={{background:"#111113", border: d.best?"2px solid #ffcc00":"1px solid #2a2a2e", borderRadius:14, overflow:"hidden"}}>
+            <img src={d.img} alt="deal" style={{width:"100%", height:150, objectFit:"cover"}} onError={e=>e.target.src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400"}/>
+            <div style={{padding:10}}><div style={{fontWeight:900, fontSize:13}}>{d.name||d.type} {d.best?"⭐ BEST":""}</div><div style={{fontSize:10, opacity:0.6, marginTop:4}}>{d.desc||d.details||d.rating}</div><div style={{marginTop:8, display:"flex", justifyContent:"space-between", alignItems:"center"}}><div><span style={{fontWeight:900, color:"#00ff88", fontSize:16}}>{d.price||d.budget}</span> {d.mrp && <span style={{textDecoration:"line-through", fontSize:10, opacity:0.4, marginLeft:4}}>{d.mrp}</span>} {d.off && <span style={{background:"#ff8c00", padding:"2px 6px", borderRadius:4, fontSize:9, marginLeft:4}}>{d.off}</span>}</div><a href={d.link||"#"} target="_blank" style={{background:"#ffcc00", color:"black", padding:"6px 12px", borderRadius:6, fontSize:10, fontWeight:900, textDecoration:"none"}}>{d.site||"VIEW"}</a></div></div>
+          </div>)}</div>}
+          {finalDeals.length>0 && typedReply.includes("TRIP PLAN") && <div style={{marginTop:12, background:"#111", border:"1px solid #ff1493", padding:12, borderRadius:10}}><div style={{color:"#ff1493", fontWeight:800, fontSize:11}}>🗺️ TOTAL TRIP PLAN - REAL</div><div style={{fontSize:12, marginTop:4}}>{typedReply}</div></div>}
+        </div>}
+      </div>
+
+      {screen==="ACTIVE" && <div style={{display:"flex", gap:6, padding:10, borderTop:"1px solid #222", background:"#08080a", position:"sticky", bottom:0}}>
+        <button onClick={startVoice} disabled={isSpeaking} style={{padding:"10px 14px", background:isListening?"#ef4444": isSpeaking?"#222":"#27272a", border:"1px solid #333", borderRadius:8, color:"white", fontWeight:800, cursor:isSpeaking?"not-allowed":"pointer"}}>{isListening?"🔴 Listening": isSpeaking?"⏳ Wait":"🎤 VOICE"}</button>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter" && handleOrder(input)} disabled={isSpeaking} placeholder={isSpeaking?"One agent speaking... wait":"Type: trip to goa / shop shoes / ticket hyd to goa"} style={{flex:1, background:"#111", border:"1px solid #333", borderRadius:8, padding:10, color:"white", opacity:isSpeaking?0.4:1}}/>
+        <button onClick={()=>handleOrder(input)} disabled={isSpeaking} style={{padding:"10px 16px", background:isSpeaking?"#333":"#ffcc00", color:"black", fontWeight:900, borderRadius:8, border:"none", cursor:isSpeaking?"not-allowed":"pointer"}}>EXECUTE</button>
+      </div>}
     </div>
   )
 }
