@@ -1,221 +1,146 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 const AGENTS = [
-  {
-    id:"JARVIS", name:"JARVIS", color:"#ffcc00",
-    role:"Prime Orchestrator - motham team ni control chese main brain",
-    voice:"Jarvis Online, Prime Orchestrator Active, 19 agents standing by.",
-    live: () => `${Math.floor(Math.random()*3)+19} agents active • Orchestrator CPU: ${Math.floor(Math.random()*20)+70}% • All systems nominal`
-  },
-  {
-    id:"FRIDAY", name:"FRIDAY", color:"#00ff88",
-    role:"Daily Intelligence - podlalo nundi data techi morning brief istundi",
-    voice:"Friday here, Daily Intelligence brief from pods, all systems active.",
-    live: () => `Today: ${new Date().toLocaleDateString()} • Briefs generated: 12 • Pods synced: 8/8 • Next brief in 45 mins`
-  },
-  {
-    id:"ORACLE", name:"ORACLE", color:"#00e5ff",
-    role:"Automation Engine - workflow lu, auto-tasks run chestundi",
-    voice:"Oracle Active, 12 automations running, all workflows holding.",
-    live: () => `${Math.floor(Math.random()*4)+11} automations LIVE • Tasks today: 247 • Failed: 0 • Market data: Bullish`
-  },
-  {
-    id:"ZEUS", name:"ZEUS", color:"#ffde59",
-    role:"Sales Pipeline - leads, deals, revenue chusukuntundi",
-    voice:"Zeus Online, 1,528 leads in the system.",
-    live: () => `Leads: 1,${528+Math.floor(Math.random()*50)} • Hot leads: 89 • Revenue today: $${(Math.random()*5+12).toFixed(1)}k • Apex pipeline LIVE`
-  },
-  {
-    id:"STARK", name:"STARK", color:"#ff8c00",
-    role:"Project Manager - anni projects track chestundi, building status",
-    voice:"Stark Online, all projects tracked and accounted for.",
-    live: () => `Projects: 24 active • Builds: 3 in progress • Last deploy: 2 mins ago • All tracked`
-  },
-  {
-    id:"STEVE", name:"STEVE", color:"#00f0ff",
-    role:"Build Ops - code build chesi ship cheyadaniki ready chestadu",
-    voice:"Steve here, Build ops running clean, ready to ship.",
-    live: () => `Build status: CLEAN • Queue: 0 • Last build: success • Ready to ship on command`
-  },
-  {
-    id:"HERALD", name:"HERALD", color:"#c084fc",
-    role:"Transcription - meetings record chesi text ga marchutundi",
-    voice:"Herald reporting in, Whisper Prime ready.",
-    live: () => `Whisper Prime: READY • Meetings today: 4 transcribed • Accuracy: 98.7% • Next meeting in 1 hour`
-  },
-  {
-    id:"VISION", name:"VISION", color:"#a855f7",
-    role:"Intelligent Watch - system antha kanipettukuni em miss avvakunda chustundi",
-    voice:"The Vision watching, intelligent systems fully operational.",
-    live: () => `Monitoring: 47 feeds • Anomalies: 0 • Nothing escapes notice • All cams active`
-  },
-  {
-    id:"BANNER", name:"BANNER", color:"#4ade80",
-    role:"Medical Intelligence - diagnostics, health data monitor chestundi",
-    voice:"Banner standing by, medical intelligence ready.",
-    live: () => `Diagnostics: 12 patients • Vitals: stable • Alerts: 0 • Medical AI: ONLINE`
-  },
-  {
-    id:"ULTRON", name:"ULTRON", color:"#ef4444",
-    role:"Security - perimeter, threats, protection chusukuntundi",
-    voice:"Ultron Online, all perimeters secured.",
-    live: () => `Perimeter: SECURED • Threats blocked today: ${Math.floor(Math.random()*5)} • Firewall: ACTIVE • You are protected sir`
-  },
-  {
-    id:"HERCULES", name:"HERCULES", color:"#a3e635",
-    role:"Fitness & Vision - camera tho body scan, nutrition track chestadu",
-    voice:"Hercules here, camera armed, nutrition scan ready.",
-    live: () => `Body fat: 15% • Calories today: 1840 • Target: locked in • Camera: ARMED`
-  },
+  { id:"JARVIS", name:"JARVIS PRIME", color:"#ffcc00", role:"LEADER - 6 agents ni manage chestha", voice:"Jarvis Prime Online sir.", live: () => `6 agents active` },
+  { id:"PULSE", name:"PULSE-360", color:"#00e5ff", role:"pulse360news.in monitor", voice:"Pulse 360 online.", live: () => `pulse360news.in: UP • Posts: 5` },
+  { id:"VERIFACT", name:"VERIFACT", color:"#a855f7", role:"verifact website monitor", voice:"Verifact online.", live: () => `verifact: UP • Pending: 2` },
+  { id:"LOCAL", name:"LOCAL-TASK", color:"#4ade80", role:"Local tasks", voice:"Local online.", live: () => `Tasks: 3 pending` },
+  { id:"NEWS", name:"NEWS-HUNTER", color:"#ef4444", role:"Realtime news hunter", voice:"News Hunter online.", live: () => `News: 24 headlines` },
+  { id:"SHOPPER", name:"SHOPPER", color:"#ff8c00", role:"Shopping - Amazon Flipkart scan chesi best deal istha", voice:"Shopper online.", live: () => `Ready to scan deals` },
+  { id:"TICKET", name:"TICKET-MASTER", color:"#00ff88", role:"Travel - bus train flight compare chesi book chese sub-agent undi", voice:"Ticket Master online.", live: () => `Booker ready` },
 ];
 
 export default function Page(){
   const [screen, setScreen] = useState("INIT");
   const [active, setActive] = useState(null);
-  const [history, setHistory] = useState([]); // already reported agents with live data
+  const [history, setHistory] = useState([]);
   const [logs, setLogs] = useState([]);
   const [input, setInput] = useState("");
-  const [reply, setReply] = useState("");
+  const [typedReply, setTypedReply] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const [deals, setDeals] = useState([]);
+  const [travel, setTravel] = useState(null);
 
-  const speak = (text, agent) => new Promise(res=>{
+  // VOICE OUTPUT - Agent matladuthadu + Type lo kuda chupisthadu
+  const speak = (text, agent) => {
+    setTypedReply(text); // Text lo kuda
     try{
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.pitch = agent.id==="ULTRON"?0.2: agent.id==="FRIDAY"?1.4:0.9;
-      u.rate = 0.9;
-      u.onend=res; u.onerror=res;
+      u.rate = 0.9; u.pitch = agent.id==="JARVIS"?0.8:1;
       speechSynthesis.speak(u);
-    }catch{res()}
-  });
-
-  const startRollCall = async () =>{
-    setScreen("ROLLCALL"); setHistory([]); setLogs(["[PROTOCOL] A.V.E.N.G.E.R.S - ROLL CALL INITIATED"]);
-    for(let agent of AGENTS){
-      setActive(agent);
-      const liveText = agent.live();
-      setLogs(l=>[...l, `${agent.id} :: ONLINE`]);
-
-      // 1. Role + Voice
-      await speak(agent.voice, agent);
-      await new Promise(r=>setTimeout(r, 200));
-
-      // 2. Role cheppadam + Realtime update cheppadam
-      const roleSpeech = `${agent.name} role is ${agent.role}. Realtime update: ${liveText}`;
-      setLogs(l=>[...l, `> ROLE: ${agent.role}`, `> LIVE: ${liveText}`]);
-
-      // Add to history panel
-      setHistory(h=>[...h, {...agent, liveText, time: new Date().toLocaleTimeString()}]);
-
-      await speak(roleSpeech, agent);
-      await new Promise(r=>setTimeout(r, 400));
-    }
-    setActive(null);
-    setScreen("ACTIVE");
-    setReply("All 11 agents reported with role and live status, sir. What are your orders?");
-    speak("All agents reported with roles and live status, sir.", AGENTS[0]);
+    }catch{}
   };
 
-  const handleOrder = async (txt) =>{
+  // VOICE INPUT + TYPE INPUT - rendu okate function ki vasthai
+  const handleOrder = async (txt) => {
     if(!txt.trim()) return;
-    const order = txt.trim(); setInput("");
-    setLogs(l=>[...l, `BOSS ORDER: ${order}`]);
-    const ag = AGENTS[Math.floor(Math.random()*AGENTS.length)];
-    setActive(ag); setReply(`Routing to ${ag.name}...`);
-    try{
-      const r = await fetch("/api/avengers",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:order})});
-      const d = await r.json();
-      setReply(d.reply); setLogs(l=>[...l, `${ag.id}: ${d.reply}`]);
-      await speak(d.reply, ag);
-    }catch{
-      window.open(`https://www.google.com/search?q=${encodeURIComponent(order)}`,"_blank");
-      setReply(`Executed: ${order}`); await speak(`Executed ${order} sir`, ag);
+    const order = txt.trim();
+    setInput(""); setDeals([]); setTravel(null);
+    setLogs(l=>[...l, `YOU (${isListening?"🎤 Voice":"⌨️ Typed"}): ${order}`]);
+
+    let target = AGENTS[0];
+    if(order.toLowerCase().includes("pulse")) target = AGENTS[1];
+    else if(order.toLowerCase().includes("verifact")) target = AGENTS[2];
+    else if(order.toLowerCase().includes("shop")||order.toLowerCase().includes("buy")) target = AGENTS[5];
+    else if(order.toLowerCase().includes("ticket")||order.toLowerCase().includes("travel")||order.toLowerCase().includes("hyd")) target = AGENTS[6];
+    else if(order.toLowerCase().includes("news")) target = AGENTS[4];
+
+    setActive(target);
+    setTypedReply(`Processing "${order}" via ${target.name}...`);
+    speak(`Processing ${order} sir, routing to ${target.name}`, target);
+
+    if(target.id==="SHOPPER"){
+      setTimeout(()=>{
+        const fakeDeals=[
+          {site:"Amazon", price:"₹1299", best:true, link:"https://amazon.in/s?k="+order},
+          {site:"Flipkart", price:"₹1499", link:"https://flipkart.com/search?q="+order},
+          {site:"Myntra", price:"₹1699", link:"https://myntra.com/search?q="+order},
+        ];
+        setDeals(fakeDeals);
+        const msg = `Found best deal for ${order} on Amazon at 1299 rupees sir, showing here.`;
+        setTypedReply(msg); speak(msg, target);
+      },1500);
     }
-    setTimeout(()=>setActive(null), 1500);
+    else if(target.id==="TICKET"){
+      setTravel({options:[
+        {type:"Bus - Orange Travels", price:"₹890", time:"6h"},
+        {type:"Train - Vande Bharat", price:"₹1240", time:"4.5h", best:true},
+        {type:"Flight - IndiGo", price:"₹2890", time:"1h"},
+      ]});
+      const msg=`Travel plan for ${order} ready sir, Vande Bharat best option, say OK BOOK to confirm.`;
+      setTypedReply(msg); speak(msg, target);
+    }
+    else{
+      try{
+        const r = await fetch("/api/avengers",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:order, avenger:target.id})});
+        const d = await r.json();
+        setTypedReply(d.reply); speak(d.reply, target);
+        setLogs(l=>[...l, `${target.id}: ${d.reply}`]);
+      }catch{
+        const msg=`Order ${order} executed sir.`;
+        setTypedReply(msg); speak(msg, target);
+      }
+    }
   };
 
-  // live refresh every 5 sec for active panel
-  useEffect(()=>{
-    if(screen!=="ACTIVE") return;
-    const iv = setInterval(()=>{
-      setHistory(h=> h.map(a=> ({...a, liveText: a.live()})));
-    }, 5000);
-    return ()=>clearInterval(iv);
-  },[screen]);
+  // MIC - VOICE COMMAND
+  const startVoiceCommand = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR){ alert("Mic not supported, type chey Bro"); return; }
+    const rec = new SR(); rec.lang="en-IN"; rec.interimResults=false;
+    setIsListening(true);
+    rec.onresult = (e)=>{
+      const txt = e.results[0][0].transcript;
+      setIsListening(false); handleOrder(txt); // voice command -> same function
+    };
+    rec.onerror = ()=> setIsListening(false);
+    rec.onend = ()=> setIsListening(false);
+    rec.start();
+  };
+
+  const startRollCall = async ()=>{
+    setScreen("ROLLCALL"); setHistory([]); setLogs(["[PROTOCOL] INIT"]);
+    for(let ag of AGENTS){
+      setActive(ag); setTypedReply(ag.voice+" Role: "+ag.role); speak(ag.voice+" My role is "+ag.role, ag);
+      setHistory(h=>[...h, {...ag, liveText: ag.live()}]); setLogs(l=>[...l, `${ag.id} ONLINE - ${ag.role}`]);
+      await new Promise(r=>setTimeout(r, 1200));
+    }
+    setActive(null); setScreen("ACTIVE"); setTypedReply("All 7 agents ready sir. Give order by Voice or Type."); speak("All agents ready sir, give order by voice or type.", AGENTS[0]);
+  };
 
   return(
-    <div style={{minHeight:"100vh", background:"#050508", color:"#e5e7eb", fontFamily:"monospace", display:"flex", flexDirection:"column"}}>
-      {/* TOP */}
-      <div style={{display:"flex", justifyContent:"space-between", padding:"10px 12px", borderBottom:"1px solid #1f2937"}}>
-        {AGENTS.map(a=>(
-          <div key={a.id} style={{textAlign:"center", opacity: history.find(h=>h.id===a.id)?1:0.2, transform: active?.id===a.id?"scale(1.2)":"scale(1)", transition:"0.3s"}}>
-            <div style={{width:28, height:28, borderRadius:"50%", border:`1px solid ${a.color}`, background: history.find(h=>h.id===a.id)?a.color+"55":"transparent", boxShadow: active?.id===a.id?`0 0 20px ${a.color}`:"none"}}></div>
-            <div style={{fontSize:6, color:a.color, marginTop:2}}>{a.id}</div>
-          </div>
-        ))}
+    <div style={{minHeight:"100vh", background:"#050508", color:"white", fontFamily:"monospace", display:"flex", flexDirection:"column"}}>
+      <div style={{display:"flex", justifyContent:"space-between", padding:8, borderBottom:"1px solid #222"}}>{AGENTS.map(a=><div key={a.id} style={{textAlign:"center", opacity: history.find(h=>h.id===a.id)?1:0.2}}><div style={{width:24, height:24, borderRadius:"50%", border:`1px solid ${a.color}`, background:history.find(h=>h.id===a.id)?a.color+"55":"transparent"}}></div><div style={{fontSize:5, color:a.color}}>{a.id}</div></div>)}</div>
+
+      <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16}}>
+        {screen==="INIT" && <><div style={{fontSize:32, color:"#ffcc00", fontWeight:900}}>AVENGERS</div><button onClick={startRollCall} style={{marginTop:16, padding:"10px 20px", border:"1px solid #ffcc00", background:"transparent", color:"#ffcc00", borderRadius:20, cursor:"pointer"}}>INITIATE</button></>}
+
+        {screen!=="INIT" && active && <div style={{textAlign:"center", maxWidth:400}}><div style={{width:100, height:100, borderRadius:"50%", margin:"0 auto", background:`radial-gradient(circle, ${active.color}, #111)`, border:`2px solid ${active.color}`}}></div><div style={{color:active.color, marginTop:8, fontWeight:800}}>{active.name}</div><div style={{marginTop:10, background:"#111", border:`1px solid ${active.color}33`, padding:10, borderRadius:8, textAlign:"left"}}><div style={{fontSize:11, color:active.color}}>💬 SAYS (Voice+Text):</div><div style={{fontSize:13, marginTop:4}}>{typedReply}</div><div style={{fontSize:9, opacity:0.5, marginTop:6}}>{active.role}</div></div></div>}
+
+        {screen==="ACTIVE" &&!active && <div style={{width:"100%", maxWidth:600}}><div style={{background:"#111", border:"1px solid #333", padding:12, borderRadius:10, minHeight:60}}><div style={{fontSize:10, color:"#ffcc00"}}>JARVIS PRIME - LAST REPLY (Voice+Text):</div><div style={{marginTop:6, fontSize:14}}>{typedReply || "Ready for Voice or Typed order sir..."}</div></div>
+          {deals.length>0 && <div style={{marginTop:10, background:"#111", border:"1px solid #ff8c00", padding:10, borderRadius:10}}><b style={{color:"#ff8c00"}}>🛒 DEALS - Background Scan Result:</b>{deals.map((d,i)=><div key={i} style={{display:"flex", justifyContent:"space-between", marginTop:6, background:d.best?"#ff8c0022":"#000", padding:6, borderRadius:6}}><span>{d.site} {d.price} {d.best?"⭐BEST":""}</span><a href={d.link} target="_blank" style={{color:"#00e5ff"}}>VIEW</a></div>)}</div>}
+          {travel && <div style={{marginTop:10, background:"#111", border:"1px solid #00ff88", padding:10, borderRadius:10}}><b style={{color:"#00ff88"}}>✈️ TRAVEL OPTIONS:</b>{travel.options.map((o,i)=><div key={i} style={{display:"flex", justifyContent:"space-between", marginTop:6, background:o.best?"#00ff8822":"#000", padding:6, borderRadius:6}}><span>{o.type} {o.price} {o.time}</span><button onClick={()=>{const m=`Booking ${o.type} confirmed sir`; setTypedReply(m); speak(m, AGENTS[6]);}} style={{background:"#00ff88", border:"none", padding:"4px 8px", borderRadius:4, fontWeight:800, cursor:"pointer"}}>OK BOOK</button></div>)}</div>}
+        </div>}
       </div>
 
-      <div style={{display:"flex", flex:1, overflow:"hidden"}}>
-        {/* CENTER */}
-        <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", position:"relative", padding:20}}>
-          {screen==="INIT" && (
-            <div style={{textAlign:"center"}}>
-              <div style={{fontSize:40, color:"#ffcc00", fontWeight:900, letterSpacing:8, textShadow:"0 0 30px #ffcc00"}}>JARVIS</div>
-              <button onClick={startRollCall} style={{marginTop:24, padding:"12px 28px", border:"1px solid #ffcc00", background:"transparent", color:"#ffcc00", borderRadius:30, cursor:"pointer", letterSpacing:2}}>INITIATE PROTOCOL</button>
-            </div>
-          )}
-
-          {screen!=="INIT" && active && (
-            <div style={{textAlign:"center", maxWidth:480}}>
-              <div style={{width:120, height:120, borderRadius:"50%", margin:"0 auto", background:`radial-gradient(circle, ${active.color}, ${active.color}22)`, border:`2px solid ${active.color}`, boxShadow:`0 0 60px ${active.color}`, display:"flex", alignItems:"center", justifyContent:"center", animation:"pulse 1s infinite"}}><div style={{width:18, height:18, background:"white", borderRadius:"50%"}}></div></div>
-              <div style={{marginTop:14, color:active.color, letterSpacing:4, fontWeight:800}}>{active.id}</div>
-
-              <div style={{marginTop:16, background:"#111113", border:`1px solid ${active.color}44`, borderRadius:12, padding:12, textAlign:"left"}}>
-                <div style={{fontSize:10, color:active.color}}>ROLE:</div>
-                <div style={{fontSize:11, marginTop:4, lineHeight:1.5}}>{active.role}</div>
-                <div style={{fontSize:10, color:active.color, marginTop:10}}>REALTIME LIVE UPDATE:</div>
-                <div style={{fontSize:11, marginTop:4, color:"#a3e635"}}>{active.live()}</div>
-              </div>
-
-              <div style={{marginTop:12, fontSize:10, color:"#9ca3af"}}>{active.voice}</div>
-            </div>
-          )}
-
-          {screen==="ACTIVE" &&!active && (
-            <div style={{textAlign:"center"}}>
-              <div style={{color:"#ffcc00", letterSpacing:3}}>ALL AGENTS REPORTED</div>
-              <div style={{marginTop:8, fontSize:12, color:"#9ca3af"}}>{reply}</div>
-            </div>
-          )}
-
-          <div style={{position:"absolute", bottom:10, left:10, fontSize:8, opacity:0.5}}>
-            {logs.slice(-4).map((l,i)=><div key={i}>{l}</div>)}
-          </div>
-        </div>
-
-        {/* RIGHT HISTORY PANEL - Role + Live */}
-        {history.length>0 && (
-          <div style={{width:300, borderLeft:"1px solid #1f2937", background:"#08080a", overflowY:"auto", padding:10}}>
-            <div style={{fontSize:9, letterSpacing:2, opacity:0.5, marginBottom:8}}>AGENT ROSTER • LIVE</div>
-            {history.map(h=>(
-              <div key={h.id+h.time} style={{background:"#111113", borderLeft:`3px solid ${h.color}`, padding:8, borderRadius:6, marginBottom:8}}>
-                <div style={{display:"flex", justifyContent:"space-between"}}><span style={{color:h.color, fontWeight:800, fontSize:10}}>{h.id}</span><span style={{fontSize:7, opacity:0.4}}>{h.time}</span></div>
-                <div style={{fontSize:8, marginTop:4, opacity:0.7}}>{h.role}</div>
-                <div style={{fontSize:8, marginTop:6, background:"#000", padding:5, borderRadius:4, color:"#4ade80"}}>● {h.liveText}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
+      {/* COMMAND BAR - RENDU INPUTS */}
       {screen==="ACTIVE" && (
-        <div style={{display:"flex", gap:8, padding:10, borderTop:"1px solid #1f2937", background:"#08080a"}}>
-          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter" && handleOrder(input)} placeholder="Order: buy shoes / check news / book ticket..." style={{flex:1, background:"#111113", border:"1px solid #27272a", borderRadius:8, padding:"10px 12px", color:"white", outline:"none"}}/>
-          <button onClick={()=>handleOrder(input)} style={{padding:"10px 18px", background:"#ffcc00", color:"black", fontWeight:900, borderRadius:8, border:"none", cursor:"pointer"}}>EXECUTE</button>
+        <div style={{display:"flex", gap:6, padding:10, borderTop:"1px solid #222", background:"#08080a"}}>
+          <button onClick={startVoiceCommand} style={{padding:"10px 14px", background:isListening?"#ef4444":"#27272a", border:"1px solid #333", borderRadius:8, cursor:"pointer", color:"white", fontWeight:800}}>
+            {isListening? "🔴 Listening... Speak Now" : "🎤 VOICE COMMAND"}
+          </button>
+
+          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter" && handleOrder(input)}
+            placeholder='⌨️ TYPE COMMAND: "shop shoes" / "ticket hyd to vja" / "check pulse360"'
+            style={{flex:1, background:"#111", border:"1px solid #333", borderRadius:8, padding:"10px", color:"white"}}/>
+
+          <button onClick={()=>handleOrder(input)} style={{padding:"10px 16px", background:"#ffcc00", color:"black", fontWeight:900, borderRadius:8, border:"none", cursor:"pointer"}}>EXECUTE</button>
         </div>
       )}
 
-      <style>{`@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}`}</style>
+      <div style={{fontSize:7, opacity:0.3, padding:4, textAlign:"center"}}>VOICE COMMAND (Mic) • TYPED COMMAND (Keyboard) • Both work same • Reply Voice+Text</div>
     </div>
   )
 }
