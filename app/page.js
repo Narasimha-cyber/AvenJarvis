@@ -2,65 +2,62 @@
 import { useState, useEffect, useRef } from "react";
 
 const AGENTS = [
-  {id:"JARVIS", name:"JARVIS PRIME", emoji:"🧠", color:"bg-purple-600"},
-  {id:"PULSE", name:"PULSE-360", emoji:"📰", color:"bg-red-600"},
-  {id:"VERIFACT", name:"VERIFACT", emoji:"🛡️", color:"bg-green-600"},
-  {id:"SHOPPER", name:"SHOPPER", emoji:"🛒", color:"bg-pink-600"},
-  {id:"NEWS", name:"NEWS", emoji:"🌐", color:"bg-blue-600"},
-  {id:"TRIP", name:"TRIP", emoji:"🗺️", color:"bg-yellow-600"},
-  {id:"TICKET", name:"TICKET", emoji:"✈️", color:"bg-indigo-600"},
+  {id:"JARVIS", name:"JARVIS PRIME", emoji:"🧠", bg:"#7c3aed", desc:"Main Boss"},
+  {id:"PULSE", name:"PULSE-360", emoji:"📰", bg:"#dc2626", desc:"News Site Monitor"},
+  {id:"VERIFACT", name:"VERIFACT", emoji:"🛡️", bg:"#16a34a", desc:"Fake News Checker"},
+  {id:"SHOPPER", name:"SHOPPER", emoji:"🛒", bg:"#db2777", desc:"Best Deals Finder"},
+  {id:"NEWS", name:"NEWS", emoji:"🌐", bg:"#2563eb", desc:"Live News"},
+  {id:"TRIP", name:"TRIP PLANNER", emoji:"🗺️", bg:"#ca8a04", desc:"Trip Planner"},
+  {id:"TICKET", name:"TICKET FINDER", emoji:"✈️", bg:"#4f46e5", desc:"Ticket Booking"},
 ];
 
-function getInstantBest(product, low){
+function getInstantBest(low){
   const m = new Date().getMonth();
   const bestPlace = [5,6,7,8].includes(m)? "Araku Valley + Maredumilli" : "Goa + Jaipur";
-
   if(low.includes("saree")||low.includes("chiffon")||low.includes("fabric")){
-    return `SHOPPER AGENT ONLINE BOSS! 🛒 Eroju Best Deal - Chiffon Saree Amazon lo ₹799 MRP ₹1999 60% OFF 4.3⭐ ide 4 sites lo kante cheapest today! Real cards kinda vastunnai Boss! 🔴 LIVE`;
+    return `SHOPPER AGENT ONLINE BOSS! 🛒 Eroju Best Deal - Chiffon Saree Amazon lo ₹799 MRP ₹1999 60% OFF 4.3⭐ ide cheapest today! Real cards vastunnai Boss! 🔴 LIVE`;
   }
-  if(low.includes("shoe")||low.includes("sneaker")){
-    return `SHOPPER AGENT ONLINE BOSS! 🛒 Eroju Best Deal - Shoes Nike ₹1299 MRP ₹2999 56% OFF best today! Real cards vastunnai! 🔴 LIVE`;
-  }
-  if(low.includes("phone")||low.includes("mobile")){
-    return `SHOPPER AGENT ONLINE BOSS! 🛒 Eroju Best Deal - Phone 5G ₹14999 best price today Flipkart lo! 🔴 LIVE`;
-  }
-  if(low.includes("watch")){
-    return `SHOPPER AGENT ONLINE BOSS! 🛒 Eroju Best Deal - Watch Titan ₹1999 40% OFF best today! 🔴 LIVE`;
-  }
-  if(low.includes("trip")||low.includes("visit")||low.includes("best place")){
-    return `TRIP AGENT ONLINE BOSS! 🗺️ Eroju Best Place - ${bestPlace} ide ippudu velladaniki best, waterfalls full & tickets cheap today! Full info vastundi! 🔴 LIVE`;
-  }
-  if(low.startsWith("news")||low.includes("headlines")){
-    return `NEWS AGENT ONLINE BOSS! 🌐 Eroju Best Trending - AP Monsoon Heavy Rains No.1 trending today! Full live news vastundi! 🔴 LIVE`;
-  }
-  if(low.includes("ticket")||low.includes("bus")||low.includes("train")||low.includes("flight")){
-    return `TICKET AGENT ONLINE BOSS! ✈️ Eroju Best Booking - Train 17208 ₹280 24 seats + Hotel ₹1200 = ₹1800 combo Save ₹800 best today! Full list vastundi! 🔴 LIVE`;
-  }
-  if(low.includes("pulse360")){
-    return `PULSE-360 AGENT ONLINE BOSS! 📰 Eroju Best Update - Site LIVE super fast & ${bestPlace} article best trending today! 🔴 LIVE`;
-  }
-  return `JARVIS PRIME ONLINE BOSS! 🧠 Best Today - Place ${bestPlace}, Saree ₹799 best, News trending - All best picks today! 🔴 LIVE`;
+  if(low.includes("shoe")) return `SHOPPER AGENT ONLINE BOSS! 🛒 Eroju Best Deal - Shoes Nike ₹1299 56% OFF best today! 🔴 LIVE`;
+  if(low.includes("phone")) return `SHOPPER AGENT ONLINE BOSS! 🛒 Eroju Best Deal - Phone 5G ₹14999 best today! 🔴 LIVE`;
+  if(low.includes("watch")) return `SHOPPER AGENT ONLINE BOSS! 🛒 Eroju Best Deal - Watch Titan ₹1999 40% OFF best! 🔴 LIVE`;
+  if(low.includes("trip")||low.includes("visit")||low.includes("best place")) return `TRIP AGENT ONLINE BOSS! 🗺️ Eroju Best Place - ${bestPlace} ide best today, waterfalls full & train ₹280 best! 🔴 LIVE`;
+  if(low.startsWith("news")||low.includes("headlines")) return `NEWS AGENT ONLINE BOSS! 🌐 Eroju Best Trending - AP Monsoon Heavy Rains No.1 trending today! 🔴 LIVE`;
+  if(low.includes("ticket")||low.includes("bus")||low.includes("train")||low.includes("flight")) return `TICKET AGENT ONLINE BOSS! ✈️ Eroju Best Booking - Train 17208 ₹280 24 seats + Hotel ₹1200 = ₹1800 combo Save ₹800 best! 🔴 LIVE`;
+  if(low.includes("pulse360")) return `PULSE-360 AGENT ONLINE BOSS! 📰 Eroju Best Update - Site LIVE super fast & ${bestPlace} topic trending best today! 🔴 LIVE`;
+  if(low.includes("verifact")||low.includes("fake")) return `VERIFACT AGENT ONLINE BOSS! 🛡️ Eroju Best Alert - Fake News checking LIVE, real vs fake chepta Boss! 🔴 LIVE`;
+  return `JARVIS PRIME ONLINE BOSS! 🧠 Eroju Best Overall - Place ${bestPlace}, Deal Saree ₹799 best, News trending - All best picks today! 🔴 LIVE`;
 }
 
 export default function Home(){
   const [activeAgent, setActiveAgent] = useState(AGENTS[0]);
-  const [messages, setMessages] = useState([{role:"assistant", content:"Welcome Boss! 🧠 Try: chiffon sarees, shoes under 1500, trip to araku, ticket to hyd, news, pulse360news", agent:AGENTS[0]}]);
+  const [messages, setMessages] = useState([
+    {role:"assistant", content:"Welcome Boss! 🧠 Avengers Ready!\n\nTry:\n• chiffon fabric sarees\n• shoes under 1500\n• trip to araku valley\n• ticket from vijayawada to hyderabad\n• news about AP\n• pulse360news\n• verifact free laptop", agent:AGENTS[0]}
+  ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [typingText, setTypingText] = useState("");
   const [finalDeals, setFinalDeals] = useState([]);
+  const [isListening, setIsListening] = useState(false);
   const chatRef = useRef(null);
 
   useEffect(()=>{ chatRef.current?.scrollIntoView({behavior:"smooth"}); },[messages, typingText, finalDeals]);
 
+  const speak = (text)=>{
+    if('speechSynthesis' in window){
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text.slice(0,200));
+      u.rate=1; u.lang='en-IN';
+      window.speechSynthesis.speak(u);
+    }
+  };
+
   const handleOrder = async (txt)=>{
     const order = txt.trim();
     if(!order) return;
-
     const low = order.toLowerCase();
     let targetId = "JARVIS";
     const isProduct = /(saree|chiffon|fabric|dress|kurta|shoe|sneaker|phone|mobile|watch|bag|deal|offer|under \d+)/i.test(low);
-    const isTicket = low.includes("ticket") || (low.includes("bus")&&low.includes("to")) || (low.includes("train")&&low.includes("to"));
+    const isTicket = low.includes("ticket") || (low.includes("bus")&&low.includes("to")) || (low.includes("train")&&low.includes("to")) || (low.includes("flight")&&low.includes("to"));
 
     if(low.includes("pulse360")) targetId="PULSE";
     else if(low.includes("verifact")||low.includes("fake")) targetId="VERIFACT";
@@ -71,12 +68,11 @@ export default function Home(){
 
     const target = AGENTS.find(a=>a.id===targetId);
     setActiveAgent(target);
-    setInput("");
-    setFinalDeals([]);
+    setInput(""); setFinalDeals([]);
     setMessages(prev=>[...prev, {role:"user", content:order}]);
 
-    // BUG 1 FIX: ONLINE ANNAPPude BEST DEAL - FIRST THING
-    const instantMsg = getInstantBest(order, low);
+    // NEW CHANGE: ONLINE ANNAPPude BEST DEAL - FIRST THING
+    const instantMsg = getInstantBest(low);
     setIsTyping(true);
     setTypingText(instantMsg);
 
@@ -87,66 +83,83 @@ export default function Home(){
         body:JSON.stringify({prompt:order, avenger:targetId, t:Date.now(), r:Math.random()})
       });
       const data = await res.json();
-
-      // 1.2 sec tarvata full report
       setTimeout(()=>{
-        setIsTyping(false);
-        setTypingText("");
-        setMessages(prev=>[...prev, {role:"assistant", content:data.reply, agent:target}]);
+        setIsTyping(false); setTypingText("");
+        setMessages(prev=>[...prev, {role:"assistant", content:data.reply, agent:target, place:data.detectedPlace}]);
         if(data.deals) setFinalDeals(data.deals);
-      }, 1300);
-
+        speak(data.reply);
+      }, 1200);
     }catch(e){
       setIsTyping(false);
       setMessages(prev=>[...prev, {role:"assistant", content:"Error Boss: "+e.message, agent:target}]);
     }
   };
 
+  const startVoice = ()=>{
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SpeechRecognition){ alert("Voice not supported in this browser"); return; }
+    const rec = new SpeechRecognition();
+    rec.lang="en-IN"; rec.onstart=()=>setIsListening(true);
+    rec.onend=()=>setIsListening(false);
+    rec.onresult=(e)=>{ const txt=e.results[0][0].transcript; setInput(txt); handleOrder(txt); };
+    rec.start();
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
-      <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
-        <h1 className="font-bold text-xl">Avengers - Boss Mode - {activeAgent.emoji} {activeAgent.name}</h1>
-        <div className="flex gap-2">
+    <div style={{minHeight:"100vh", background:"#000", color:"#fff", fontFamily:"Arial, sans-serif", display:"flex", flexDirection:"column"}}>
+      {/* Header */}
+      <div style={{padding:"12px 16px", borderBottom:"1px solid #333", display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:"8px"}}>
+        <div style={{fontWeight:"bold", fontSize:"15px"}}>⚡ AVENGERS - BOSS MODE - {activeAgent.emoji} {activeAgent.name}</div>
+        <div style={{display:"flex", gap:"5px", flexWrap:"wrap"}}>
           {AGENTS.map(a=>(
-            <button key={a.id} onClick={()=>setActiveAgent(a)} className={`px-3 py-1 rounded text-xs ${activeAgent.id===a.id?"bg-white text-black":"bg-zinc-800"}`}>{a.emoji}</button>
+            <button key={a.id} onClick={()=>setActiveAgent(a)} title={a.desc} style={{padding:"5px 9px", borderRadius:"6px", fontSize:"11px", border:"1px solid #444", cursor:"pointer", background: activeAgent.id===a.id? a.bg:"#222", color:"#fff"}}>{a.emoji} {a.id}</button>
           ))}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 max-w-5xl mx-auto w-full">
+      {/* Chat */}
+      <div style={{flex:1, overflowY:"auto", padding:"16px", maxWidth:"900px", margin:"0 auto", width:"100%"}}>
         {messages.map((m,i)=>(
-          <div key={i} className={`${m.role==="user"?"text-right":"text-left"}`}>
-            <div className={`inline-block max-w-[85%] px-4 py-3 rounded-xl ${m.role==="user"?"bg-purple-600":"bg-zinc-800"} text-sm whitespace-pre-wrap`}>
-              {m.role==="assistant" && <div className="text-[10px] opacity-50 mb-1">{m.agent?.emoji} {m.agent?.name} ONLINE BOSS!</div>}
+          <div key={i} style={{textAlign: m.role==="user"?"right":"left", marginBottom:"12px"}}>
+            <div style={{display:"inline-block", maxWidth:"88%", padding:"10px 14px", borderRadius:"14px", background: m.role==="user"? "#7c3aed":"#1e1e1e", fontSize:"13px", whiteSpace:"pre-wrap", textAlign:"left", border: m.role==="assistant"?"1px solid #333":"none"}}>
+              {m.role==="assistant" && <div style={{fontSize:"10px", opacity:0.6, marginBottom:"4px", color:"#a78bfa"}}>{m.agent?.emoji} {m.agent?.name} - {m.agent?.desc} - ONLINE BOSS!</div>}
               {m.content}
+              {m.place && <div style={{marginTop:"6px", fontSize:"11px", color:"#22c55e"}}>📍 {m.place}</div>}
             </div>
           </div>
         ))}
         {isTyping && (
-          <div className="text-left">
-            <div className="inline-block max-w-[85%] px-4 py-3 rounded-xl bg-zinc-800 text-sm animate-pulse">{typingText}</div>
+          <div style={{textAlign:"left", marginBottom:"12px"}}>
+            <div style={{display:"inline-block", maxWidth:"88%", padding:"10px 14px", borderRadius:"14px", background:"#1e1e1e", fontSize:"13px", border:"1px solid #7c3aed"}}>{typingText}</div>
           </div>
         )}
         {finalDeals.length>0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
-            {finalDeals.map((d,i)=>(
-              <div key={i} className={`bg-white text-black rounded-xl p-2 ${d.best?"border-4 border-green-500":""}`}>
-                {d.best && <div className="bg-green-500 text-white text-[10px] px-2 py-1 rounded mb-1 inline-block">BEST TODAY</div>}
-                <img src={d.image} alt="" className="h-28 w-full object-contain"/>
-                <div className="font-bold text-xs mt-1 line-clamp-2">{d.title}</div>
-                <div className="text-green-600 font-bold text-sm">₹{d.price} <span className="line-through text-gray-400 text-[10px]">₹{d.mrp}</span></div>
-                <div className="text-[11px]">⭐ {d.rating}</div>
-              </div>
-            ))}
+          <div>
+            <div style={{fontSize:"12px", margin:"10px 0 6px", opacity:0.7}}>🔴 LIVE REAL PRODUCTS - {finalDeals.length} found - BEST in green border</div>
+            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px"}}>
+              {finalDeals.map((d,i)=>(
+                <div key={i} style={{background:"#fff", color:"#000", borderRadius:"10px", padding:"8px", border: d.best? "3px solid #22c55e":"1px solid #ddd"}}>
+                  {d.best && <div style={{background:"#22c55e", color:"#fff", fontSize:"9px", padding:"2px 6px", borderRadius:"4px", display:"inline-block", marginBottom:"4px", fontWeight:"bold"}}>🏆 BEST TODAY</div>}
+                  <img src={d.image} alt="" style={{height:"90px", width:"100%", objectFit:"contain", background:"#f5f5f5", borderRadius:"6px"}}/>
+                  <div style={{fontWeight:"bold", fontSize:"11px", marginTop:"4px", lineHeight:"1.2"}}>{d.title.slice(0,38)}</div>
+                  <div style={{color:"#16a34a", fontWeight:"bold", fontSize:"13px", marginTop:"2px"}}>₹{d.price} <span style={{textDecoration:"line-through", color:"#999", fontSize:"10px"}}>₹{d.mrp}</span></div>
+                  <div style={{fontSize:"10px", color:"#666"}}>⭐ {d.rating} | {d.source||"REAL API"}</div>
+                  <a href={d.link} target="_blank" style={{display:"block", marginTop:"4px", background:"#000", color:"#fff", textAlign:"center", padding:"4px", borderRadius:"6px", fontSize:"10px", textDecoration:"none"}}>View Deal</a>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         <div ref={chatRef}/>
       </div>
 
-      <div className="p-4 border-t border-zinc-800 max-w-5xl mx-auto w-full flex gap-2">
-        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleOrder(input)} placeholder="Ex: chiffon fabric sarees, shoes under 1500, trip to araku, news, ticket to hyd" className="flex-1 bg-zinc-800 rounded-full px-5 py-3 text-sm outline-none"/>
-        <button onClick={()=>handleOrder(input)} className="bg-white text-black px-6 py-3 rounded-full font-bold text-sm">SEND</button>
+      {/* Input */}
+      <div style={{padding:"12px", borderTop:"1px solid #333", maxWidth:"900px", margin:"0 auto", width:"100%", display:"flex", gap:"8px", alignItems:"center"}}>
+        <button onClick={startVoice} style={{background: isListening? "#ef4444":"#222", border:"1px solid #444", borderRadius:"50%", width:"42px", height:"42px", cursor:"pointer", fontSize:"16px"}}>{isListening? "🔴":"🎤"}</button>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleOrder(input)} placeholder="Ex: chiffon sarees, shoes under 1500, trip to araku, news, pulse360news" style={{flex:1, background:"#222", border:"1px solid #444", borderRadius:"20px", padding:"12px 16px", color:"#fff", outline:"none", fontSize:"13px"}}/>
+        <button onClick={()=>handleOrder(input)} style={{background:"#fff", color:"#000", border:"none", borderRadius:"20px", padding:"12px 18px", fontWeight:"bold", cursor:"pointer", fontSize:"13px"}}>SEND</button>
       </div>
+      <div style={{textAlign:"center", fontSize:"10px", opacity:0.4, padding:"4px"}}>Avengers AI - All 7 Agents - Voice + Real Products + Live News + Trip + Ticket - Boss Mode</div>
     </div>
   );
 }
