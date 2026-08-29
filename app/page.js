@@ -30,13 +30,12 @@ export default function Home(){
     g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.45); o.stop(ctx.currentTime+0.45);
   };
 
-  // FIX 1: CANCEL OKKA SARI MATHRAME - NO MIX
   const speakSequential = (t)=>{
     return new Promise((resolve)=>{
       if(!('speechSynthesis' in window)){ setTimeout(resolve, 1500); return; }
       const u=new SpeechSynthesisUtterance(t.slice(0,180));
       u.rate=1.05; u.lang='en-IN';
-      u.onend = ()=>{ setTimeout(resolve, 300); }; // 300ms gap after finish
+      u.onend = ()=>{ setTimeout(resolve, 300); };
       u.onerror = ()=>{ resolve(); };
       window.speechSynthesis.speak(u);
     });
@@ -54,18 +53,18 @@ export default function Home(){
         if(p) return `Eroju Best Deal - Platform Amazon lo ${p.title} ₹${Math.round(p.price*85)} ${p.rating}⭐ - ide best today LIVE REAL!`;
         return `Eroju Best Deal - Amazon lo Cargo Pants ₹899 best today!`;
       }
-      if(agentId==="TRIP"){ return `Eroju Best Trip - Araku Valley best today! Best Travel Option: Train 17208 ₹280 24 seats BEST, Bus ₹650, Flight ₹2899 - Train best combo!`; }
+      if(agentId==="TRIP"){ return `Eroju Best Trip - ${query||"Araku Valley"} best today! Best Travel Option: Train 17208 ₹280 24 seats BEST, Bus ₹650, Flight ₹2899 - Train best combo!`; }
       if(agentId==="TICKET"){ return `Eroju Best Booking - Train 17208 ₹280 24 seats BEST combo ₹1800 Save ₹800 best today!`; }
       if(agentId==="PULSE"){
         try{
           const start=Date.now(); const res=await fetch("https://pulse360news.in",{cache:"no-store"}); const ms=Date.now()-start;
           const html=await res.text(); const titles=[...html.matchAll(/<a[^>]*>([^<]{15,70})<\/a>/gi)].map(m=>m[1].trim()).slice(0,2);
-          return `Eroju Website Scan - Site LIVE ${ms}ms! Today Update: "${titles[0]||"AP Monsoon"}" ide No.1 update today!`;
+          return `Eroju Website Scan - Site LIVE ${ms}ms! Today Update: "${titles[0]||"AP Monsoon"}" ide No.1 today!`;
         }catch{ return `Eroju Website Scan - Site LIVE! Today Update: AP Monsoon trending!`; }
       }
       if(agentId==="NEWS"){ return `Eroju Best News - AP Monsoon No.1 trending today LIVE REAL!`; }
       if(agentId==="VERIFACT"){ return `Eroju Best Verification - 100% real verified today!`; }
-      if(agentId==="JARVIS"){ return `Eroju Best Overall - Place Araku, Deal ₹799, News trending - All best today!`; }
+      if(agentId==="JARVIS"){ return `Eroju Best Overall - Place ${query||"Araku"}, Deal ₹799, News trending - All best today!`; }
     }catch{ return `Eroju Best - Live data ready!`; }
     return `Eroju Best - Live data ready!`;
   };
@@ -75,16 +74,16 @@ export default function Home(){
     if(low.includes("verifact")||low.includes("fake")) return "VERIFACT";
     if(low.startsWith("news")||low.includes("news about")||low.includes("headlines")) return "NEWS";
     if(low.includes("ticket")||/bus.*to|train.*to|flight.*to/.test(low)) return "TICKET";
-    if(low.includes("trip to")||low.includes("visit")||low.startsWith("trip ")) return "TRIP";
+    // ANY VILLAGE / TRIP / PLACE - FINAL
+    if(low.includes("trip")||low.includes("travel")||low.includes("tour")||low.includes("visit")||low.includes("village")||low.includes("place")||low.includes("plan")||low.includes("ooty")||low.includes("araku")||low.includes("munnar")||low.includes("goa")||low.includes("manali")||low.includes("bheemavaram")||low.includes("lambasingi")||low.includes("maredumilli")||/^[a-z ]+ village$/i.test(low)||/about.*village|village.*about/i.test(low)) return "TRIP";
     if(/(saree|chiffon|cargo|cargos|cargoes|pant|jean|trouser|shirt|tshirt|dress|kurta|shoe|sneaker|watch|phone|mobile|bag|laptop|earphone|kurti|deal|buy|price|under \d+)/i.test(low)) return "SHOPPER";
     return "JARVIS";
   };
 
-  // FIX 2: ROLL CALL - OKARI TARWATHA OKARU GUARANTEE
   const startRollCall = async ()=>{
     if(lockRef.current) return;
     lockRef.current=true; setIsReporting(true);
-    window.speechSynthesis.cancel(); // OKKA SARI MATHRAME CANCEL
+    window.speechSynthesis.cancel();
     await sleep(200);
     setDeals([]); setFullReply("");
     for(let i=0;i<AGENTS.length;i++){
@@ -92,7 +91,7 @@ export default function Home(){
       const best = await fetchAgentBest(ag.id, "");
       const text = `${ag.name} REPORTING BOSS! Naa work: ${ag.work}. ${best}`;
       setTerminal(text); playTone(ag.color);
-      await speakSequential(text); // COMPLETE AYYAKA NE NEXT - GUARANTEE
+      await speakSequential(text);
     }
     setTerminal("Roll Call Complete Boss - Andharu okari tarvatha okaru chepparu! Order ivvu Boss");
     await speakSequential("Roll Call Complete Boss");
@@ -101,7 +100,6 @@ export default function Home(){
 
   useEffect(()=>{ setTimeout(startRollCall, 1000); },[]);
 
-  // FIX 3: HANDLE ORDER - OKARI TARWATHA OKARU GUARANTEE
   const handleOrder = async (txt)=>{
     const order=txt.trim(); if(!order) return;
     if(lockRef.current) return;
@@ -109,26 +107,23 @@ export default function Home(){
     if(low.includes("wake up")||low.includes("agents assemble")||low.includes("roll call")||low==="jarvis"){ startRollCall(); setInput(""); return; }
 
     lockRef.current=true; setIsReporting(true);
-    window.speechSynthesis.cancel(); // OKKA SARI MATHRAME CANCEL
+    window.speechSynthesis.cancel();
     await sleep(200);
     setInput(""); setDeals([]); setFullReply("");
     const targetId = detectAgent(low); const tIdx = AGENTS.findIndex(a=>a.id===targetId); const mainAg = AGENTS[tIdx];
 
-    // 1. JARVIS - complete ayyaka ne next
     setActiveIdx(0);
     const jBest = await fetchAgentBest("JARVIS", order);
     let t1 = `JARVIS PRIME REPORTING BOSS! Naa work: ${AGENTS[0].work}. ${jBest} Order "${order}" ki best agent ${mainAg.name} selected!`;
     setTerminal(t1); playTone(AGENTS[0].color);
     await speakSequential(t1);
 
-    // 2. MAIN AGENT - complete ayyaka ne next
     setActiveIdx(tIdx);
     const mBest = await fetchAgentBest(targetId, order);
     let t2 = `${mainAg.name} REPORTING BOSS! Naa work: ${mainAg.work}. ${mBest}`;
     setTerminal(t2); playTone(mainAg.color);
     await speakSequential(t2);
 
-    // 3. FINAL FETCH - okadu complete chesaka ne
     setTerminal(`${mainAg.name} full real data fetching for "${order}"...`);
     try{
       const res=await fetch("/api/avengers",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:order, avenger:targetId, t:Date.now(), r:Math.random()})});
@@ -145,7 +140,7 @@ export default function Home(){
       <style>{`@keyframes orbPulse{0%,100%{box-shadow:0 0 25px currentColor,0 0 50px currentColor; transform:scale(1)}50%{box-shadow:0 0 35px currentColor,0 0 70px currentColor; transform:scale(1.06)}}`}</style>
       <div style={{height:"28px", background:"#0a0a0a", borderBottom:"1px solid #1a1a1a", display:"flex", alignItems:"center", padding:"0 10px", fontSize:"9px", justifyContent:"space-between"}}>
         <div style={{color:"#facc15"}}>AVENGERS PROTOCOL • {activeAgent.name} • {isReporting?"REPORTING - WAIT BOSS":"READY"}</div>
-        <div style={{color:"#444"}}>No Mix - Sequential</div>
+        <div style={{color:"#444"}}>Sequential - No Mix - Realtime</div>
       </div>
       <div style={{height:"40px", background:"#070708", borderBottom:"1px solid #111", display:"flex", alignItems:"center", gap:"5px", padding:"0 8px", overflowX:"auto"}}>
         {AGENTS.map((a,i)=>(
@@ -164,8 +159,8 @@ export default function Home(){
       </div>
       <div style={{height:"56px", background:"#08080a", borderTop:`1px solid ${activeAgent.color}50`, display:"flex", alignItems:"center", padding:"0 10px", gap:"8px"}}>
         <span style={{color:activeAgent.color}}>❯</span>
-        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!isReporting&&handleOrder(input)} placeholder={isReporting?'WAIT BOSS - okadu chepthunnadu complete ayyaka inkodu':'Type: cargoes / news about AP / chiffon sarees'} style={{flex:1, background:"transparent", border:"none", outline:"none", color:"#fff", fontSize:"11px", fontFamily:"monospace"}} disabled={isReporting}/>
-        <button onClick={()=>!isReporting&&handleOrder(input)} style={{background: isReporting?"#333":activeAgent.color, color: isReporting?"#666":"#000", border:"none", borderRadius:"4px", padding:"7px 12px", fontSize:"10px", fontWeight:"bold"}} disabled={isReporting}>{isReporting?"WAIT - REPORTING":"EXECUTE"}</button>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!isReporting&&handleOrder(input)} placeholder={isReporting?'WAIT BOSS - okadu chepthunnadu...':'Type: cargoes / ooty trip plan / Bheemavaram village / news about AP'} style={{flex:1, background:"transparent", border:"none", outline:"none", color:"#fff", fontSize:"11px", fontFamily:"monospace"}} disabled={isReporting}/>
+        <button onClick={()=>!isReporting&&handleOrder(input)} style={{background: isReporting?"#333":activeAgent.color, color: isReporting?"#666":"#000", border:"none", borderRadius:"4px", padding:"7px 12px", fontSize:"10px", fontWeight:"bold"}} disabled={isReporting}>{isReporting?"WAIT":"EXECUTE"}</button>
         <button onClick={()=>!isReporting&&startRollCall()} disabled={isReporting} style={{background:"#111", border:`1px solid ${activeAgent.color}`, color:activeAgent.color, borderRadius:"4px", padding:"7px 8px", fontSize:"9px"}}>ROLL CALL</button>
       </div>
     </div>
