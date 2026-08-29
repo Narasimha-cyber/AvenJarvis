@@ -1,163 +1,160 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 
-const AVENGERS = {
-  HULK: { name: "HULK", color: "shadow-green-500", pitch: 0.3, rate: 0.7, img: "💚", entry: "HULK SMASH IN! ON DUTY BOSS!" },
-  IRON_MAN: { name: "IRON MAN", color: "shadow-red-500", pitch: 1.1, rate: 1.1, img: "❤️", entry: "Iron Man on duty, Boss. Systems online." },
-  THOR: { name: "THOR", color: "shadow-blue-500", pitch: 0.7, rate: 0.85, img: "⚡", entry: "Thor, God of Thunder, on duty!" },
-  BLACK_WIDOW: { name: "WIDOW", color: "shadow-pink-500", pitch: 1.4, rate: 1.0, img: "🕷️", entry: "Black Widow on duty, Boss." },
-  CAPTAIN: { name: "CAP", color: "shadow-blue-300", pitch: 0.9, rate: 1.0, img: "🛡️", entry: "Captain America on duty, Boss!" },
-};
+const TEAM = [
+  { id:"IRON_MAN", name:"IRON MAN", emoji:"❤️", pitch:1.0, rate:1.1, color:"#ff0000", line:"Iron Man on duty, Boss. Mark 50 online." },
+  { id:"HULK", name:"HULK", emoji:"💚", pitch:0.2, rate:0.65, color:"#00ff00", line:"HULK SMASH IN! Hulk on duty Boss!" },
+  { id:"THOR", name:"THOR", emoji:"⚡", pitch:0.6, rate:0.8, color:"#00bfff", line:"Thor, God of Thunder, on duty!" },
+  { id:"CAP", name:"CAPTAIN", emoji:"🛡️", pitch:0.9, rate:0.95, color:"#3a86ff", line:"Captain America on duty, Boss!" },
+  { id:"WIDOW", name:"WIDOW", emoji:"🕷️", pitch:1.5, rate:1.0, color:"#ff006e", line:"Black Widow on duty, Boss." },
+];
 
-export default function AvenJarvis(){
-  const [active, setActive] = useState(AVENGERS.IRON_MAN);
-  const [listening, setListening] = useState(false);
-  const [order, setOrder] = useState("SAY AVENGERS ASSEMBLE");
-  const [reply, setReply] = useState("Waiting for Boss order...");
-  const [logs, setLogs] = useState([]);
-  const [searching, setSearching] = useState(false);
+export default function Page(){
+  const [active, setActive] = useState(null);
+  const [order, setOrder] = useState("SAY: AVENGERS ASSEMBLE");
+  const [reply, setReply] = useState("JARVIS STANDBY...");
+  const [logs, setLogs] = useState(["System initialized..."]);
+  const [scanning, setScanning] = useState(false);
+  const [hasMic, setHasMic] = useState(false);
   const recogRef = useRef(null);
 
-  // VOICE PITCH MATCH
-  const speak = (text, avenger = active) => {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.pitch = avenger.pitch;
-    u.rate = avenger.rate;
-    // Try to get best voice
-    const voices = speechSynthesis.getVoices();
-    u.voice = voices.find(v=>v.name.includes("Google")) || voices[0];
-    speechSynthesis.speak(u);
+  const speakSync = (text, av) => {
+    return new Promise(resolve=>{
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.pitch = av.pitch;
+      u.rate = av.rate;
+      u.onend = resolve;
+      u.onerror = resolve;
+      speechSynthesis.speak(u);
+    });
   };
 
-  // AUTO MIC + WAKE WORD
-  useEffect(()=>{
-    const startWake = () => {
-      const SR = window.webkitSpeechRecognition || window.SpeechRecognition;
-      if(!SR) return;
-      const rec = new SR();
-      rec.continuous = true;
-      rec.interimResults = false;
-      rec.lang = 'en-US';
-      rec.onresult = (e)=>{
-        const cmd = e.results[e.results.length-1][0].transcript.toLowerCase();
-        console.log("Heard:", cmd);
-        if(cmd.includes("avengers assemble")){
-          wakeUp();
-        } else if(cmd.length > 3 && listening){
-          handleOrder(cmd);
-        }
-      };
-      rec.onend = ()=> rec.start();
-      rec.start();
-      recogRef.current = rec;
-      setListening(true);
-    };
+  const wakeUpSequence = async () => {
+    if(scanning) return;
+    setScanning(true);
+    setReply("ASSEMBLING AVENGERS...");
+    setLogs(l=>[...l, `BOSS: AVENGERS ASSEMBLE`]);
 
-    // One click = auto allow forever
-    const onFirstClick = () => {
-      navigator.mediaDevices.getUserMedia({audio:true}).then(()=>{
-        startWake();
-        document.removeEventListener('click', onFirstClick);
-      });
-    };
-    document.addEventListener('click', onFirstClick);
-    return ()=> document.removeEventListener('click', onFirstClick);
-  }, [listening]);
-
-  const wakeUp = () => {
-    setSearching(true);
-    // Hologram entry one by one
-    const keys = Object.keys(AVENGERS);
-    let i=0;
-    const interval = setInterval(()=>{
-      const av = AVENGERS[keys[i]];
+    // CLEAR HOLOGRAM QUEUE - OKKARI TARVATHA OKKARU
+    for(let i=0; i<TEAM.length; i++){
+      const av = TEAM[i];
       setActive(av);
-      speak(av.entry, av);
-      setLogs(l=>[...l, `[${new Date().toLocaleTimeString()}] ${av.name}: ON DUTY BOSS`]);
-      i++;
-      if(i>=keys.length){
-        clearInterval(interval);
-        setSearching(false);
-        setReply("ALL AVENGERS ASSEMBLED. ORDER ME BOSS!");
-        speak("All Avengers on duty Boss!");
-      }
-    }, 1200);
+      setLogs(l=>[...l, `${av.name} MATERIALIZING...`]);
+      await new Promise(r=>setTimeout(r, 800)); // Hologram entry time
+      await speakSync(av.line, av);
+      setLogs(l=>[...l, `> ${av.name}: ON DUTY BOSS`]);
+      await new Promise(r=>setTimeout(r, 400));
+    }
+    setActive(null);
+    setScanning(false);
+    setReply("ALL AVENGERS ON DUTY. GIVE ME ORDERS, BOSS.");
+    await speakSync("All Avengers on duty Boss. Awaiting orders.", TEAM[0]);
   };
 
-  const handleOrder = async (text) => {
-    if(!text) return;
-    setOrder(text.toUpperCase());
-    setSearching(true);
-    setLogs(l=>[...l, `[${new Date().toLocaleTimeString()}] BOSS: ${text}`]);
+  useEffect(()=>{
+    const init = () => {
+      if(hasMic) return;
+      navigator.mediaDevices.getUserMedia({audio:true}).then(()=>{
+        setHasMic(true);
+        const SR = window.webkitSpeechRecognition || window.SpeechRecognition;
+        if(!SR) return;
+        const rec = new SR();
+        rec.continuous = true;
+        rec.interimResults = false;
+        rec.lang = 'en-US';
+        rec.onresult = (e)=>{
+          const cmd = e.results[e.results.length-1][0].transcript.toLowerCase().trim();
+          console.log(cmd);
+          if(cmd.includes("avengers assemble")){
+            wakeUpSequence();
+          } else if(cmd.length > 2){
+            handleCommand(cmd);
+          }
+        };
+        rec.onend = ()=>{ try{rec.start()}catch{} };
+        rec.start();
+        recogRef.current = rec;
+      }).catch(()=>{});
+    };
+    document.addEventListener('click', init, {once:true});
+    document.addEventListener('touchstart', init, {once:true});
+  }, [hasMic]);
 
-    // SMART ACTIONS - shopping/news/ticket
+  const handleCommand = async (text) => {
+    setOrder(text.toUpperCase());
+    setScanning(true);
+    const av = TEAM[Math.floor(Math.random()*TEAM.length)];
+    setActive(av);
+    setLogs(l=>[...l, `BOSS: ${text}`]);
+
     if(text.includes("buy") || text.includes("shop")){
-      window.open(`https://www.amazon.in/s?k=${encodeURIComponent(text)}`, "_blank");
-      setReply("Opening Stark Shopping Portal, Boss!");
-      speak("Opening shopping portal Boss");
-      setSearching(false); return;
+      window.open(`https://www.amazon.in/s?k=${encodeURIComponent(text)}`,"_blank");
+      setReply("Stark Shopping Portal Opening...");
+      await speakSync("Opening shopping portal Boss", av);
+      setScanning(false); return;
     }
     if(text.includes("news")){
-      window.open(`https://news.google.com/search?q=${encodeURIComponent(text)}`, "_blank");
-      setReply("Fetching Daily Bugle, Boss!");
-      setSearching(false); return;
+      window.open(`https://news.google.com/search?q=${encodeURIComponent(text)}`,"_blank");
+      setScanning(false); return;
     }
-    if(text.includes("ticket") || text.includes("flight") || text.includes("book")){
-      window.open(`https://www.google.com/travel/flights?q=${encodeURIComponent(text)}`, "_blank");
-      setReply("Opening Stark Travel, Boss!");
-      setSearching(false); return;
+    if(text.includes("ticket") || text.includes("book") || text.includes("flight")){
+      window.open(`https://www.google.com/travel/flights`,"_blank");
+      setScanning(false); return;
     }
-
-    // GEMINI CALL
-    const avKeys = Object.keys(AVENGERS);
-    const randomAv = AVENGERS[avKeys[Math.floor(Math.random()*avKeys.length)]];
-    setActive(randomAv);
 
     try{
-      const res = await fetch("/api/avengers", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({prompt: text, avenger: randomAv.name})
-      });
-      const data = await res.json();
-      setReply(data.reply);
-      speak(data.reply, randomAv);
-      setLogs(l=>[...l, `[${new Date().toLocaleTimeString()}] ${randomAv.name}: ${data.reply.substring(0,50)}...`]);
-    }catch(e){
-      setReply("System Error Boss!");
-    }
-    setSearching(false);
+      const r = await fetch("/api/avengers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:text, avenger:av.name})});
+      const d = await r.json();
+      setReply(d.reply);
+      await speakSync(d.reply, av);
+    }catch{}
+    setScanning(false);
+    setTimeout(()=>setActive(null), 2000);
   };
 
   return(
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 font-mono overflow-hidden relative">
-      {/* AVENGERS THEME SEARCH ANIMATION */}
-      {searching && <div className="absolute inset-0 bg-cyan-500/10 backdrop-blur-sm z-10 flex items-center justify-center">
-        <div className="text-cyan-400 animate-ping text-xl">◉ A-V-E-N-G-E-R-S SCANNING...</div>
-      </div>}
+    <div className="min-h-screen bg-[#020617] text-cyan-100 flex flex-col items-center p-3 relative overflow-hidden">
+      {/* FUTURISTIC GRID BG */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#0ea5e922,_transparent_70%)]"></div>
+      <div className="absolute inset-0 opacity-20" style={{backgroundImage:"linear-gradient(cyan 1px, transparent 1px), linear-gradient(90deg, cyan 1px, transparent 1px)", backgroundSize:"50px 50px"}}></div>
 
-      {/* HOLOGRAM */}
-      <div className={`w-40 h-40 rounded-full border-4 border-cyan-400 flex items-center justify-center text-6xl shadow-[0_0_80px_cyan] transition-all duration-500 ${searching?'scale-110':''} ${active.color}`}>
-        <span className="animate-pulse">{active.img}</span>
+      {/* HUMANOID CORE */}
+      <div className="relative mt-10 z-20">
+        <div className="w-[280px] h-[280px] rounded-full border border-cyan-400/30 flex items-center justify-center relative bg-black/50 backdrop-blur">
+          <div className="absolute inset-2 rounded-full border border-cyan-400/20 animate-spin" style={{animationDuration:"4s"}}></div>
+          <div className="absolute inset-8 rounded-full border border-cyan-300/10 animate-ping"></div>
+          {/* HOLOGRAM */}
+          {active? (
+            <div className="flex flex-col items-center animate-[pulse_0.8s_ease-in-out_infinite]">
+              <div className="text-[80px] drop-shadow-[0_0_30px_currentColor]" style={{color:active.color}}>{active.emoji}</div>
+              <div className="text-xs tracking-widest mt-2" style={{color:active.color}}>{active.name}</div>
+              <div className="w-20 h-[2px] mt-2 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse"></div>
+            </div>
+          ) : (
+            <div className="text-cyan-500/50">◉ STANDBY</div>
+          )}
+        </div>
+        {/* SCANLINE */}
+        {scanning && <div className="absolute top-0 w-full h-[3px] bg-cyan-400 shadow-[0_0_20px_cyan] animate-[scan_2s_linear_infinite]"></div>}
       </div>
-      <h1 className="mt-4 text-cyan-400 tracking-[0.5em]">{active.name} ACTIVE</h1>
-      <p className="text-xs opacity-50 mt-2">Last Order: {order}</p>
 
-      <div className="mt-6 w-full max-w-2xl bg-white/5 border border-cyan-900 p-4 rounded-lg min-h-[100px] text-center">
-        {reply}
+      <div className="z-20 mt-6 text-center">
+        <h2 className="text-cyan-400 tracking-[0.6em] text-sm">{active? `${active.name} TRANSMITTING` : "F.R.I.D.A.Y"}</h2>
+        <p className="text-[10px] opacity-50 mt-1">{order}</p>
       </div>
 
-      <div className="mt-4 flex gap-2">
-        <button onClick={wakeUp} className="px-6 py-2 bg-cyan-500 text-black font-bold rounded">AVENGERS ASSEMBLE</button>
-        <button onClick={()=>handleOrder(prompt("Type Order:"))} className="px-6 py-2 border border-cyan-500 rounded">TYPE ORDER</button>
+      <div className="z-20 mt-4 w-full max-w-xl bg-cyan-950/30 border border-cyan-800 rounded-lg p-4 text-center min-h-[90px] backdrop-blur">
+        {scanning? <span className="animate-pulse text-cyan-300">◉ SCANNING AVENGERS NETWORK...</span> : reply}
       </div>
 
-      <div className="mt-6 w-full max-w-2xl text-xs opacity-60">
-        <p>BOSS LOG</p>
-        {logs.slice(-4).map((l,i)=><div key={i}>{l}</div>)}
+      {!hasMic && <div className="z-20 mt-4 px-4 py-2 bg-red-500/20 border border-red-500 text-xs animate-pulse">TAP ANYWHERE TO ENABLE MIC - THEN JUST SAY "AVENGERS ASSEMBLE"</div>}
+
+      <div className="z-20 mt-4 w-full max-w-xl text-[10px] font-mono opacity-60 space-y-1">
+        {logs.slice(-5).map((l,i)=><div key={i}>{l}</div>)}
       </div>
-      <p className="mt-4 text-[10px] opacity-30">CLICK ANYWHERE TO ALLOW MIC ONCE - THEN JUST SAY "AVENGERS ASSEMBLE"</p>
+
+      <style>{`@keyframes scan{0%{top:0}100%{top:100%}}`}</style>
     </div>
-  );
+  )
 }
