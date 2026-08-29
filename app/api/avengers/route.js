@@ -23,14 +23,12 @@ export async function POST(req){
 
     async function realProducts(searchTerm){
       try{
-        // cargoes -> cargo pants ki convert
         let term=searchTerm;
         if(/cargoes|cargos|cargo/i.test(term)) term="cargo pants";
         if(term.length<3) term="tshirt";
         const r=await fetch(`https://dummyjson.com/products/search?q=${encodeURIComponent(term)}&limit=10&skip=${Math.floor(Math.random()*5)}`,{cache:"no-store"});
         const j=await r.json();
         if(j.products && j.products.length>0) return j.products;
-        // fallback - any products
         const r2=await fetch(`https://dummyjson.com/products?limit=10&skip=${Math.floor(Math.random()*20)}`,{cache:"no-store"});
         const j2=await r2.json();
         return j2.products||[];
@@ -46,16 +44,14 @@ export async function POST(req){
       }catch{ return []; }
     }
 
-    // DECIDE - PRODUCT OR GENERAL?
     const isMaybeProduct = /(saree|chiffon|cargo|cargos|cargoes|pant|jean|trouser|shirt|tshirt|dress|kurta|shoe|sneaker|watch|phone|mobile|bag|laptop|earphone|deal|buy|price|under \d+)/i.test(low);
 
-    // IF PRODUCT-LIKE -> REAL PRODUCT SEARCH
     if(isMaybeProduct){
       const clean = q.replace(/under \d+.*|buy|best|deal|price|search/gi,"").trim()||q;
       const products = await realProducts(clean);
       const filtered = products.slice(0,6);
-      const best = filtered.reduce((a,b)=> a.rating>b.rating?a:b, filtered[0]);
-      if(best){
+      if(filtered.length>0){
+        const best = filtered.reduce((a,b)=> a.rating>b.rating?a:b, filtered[0]);
         let reply=`SHOPPER REALTIME SEARCH 🔴 ${today}\n\nQuery: "${q}" - Exact LIVE search Boss!\n\n🏆 BEST TODAY: ${best.title} - ₹${Math.round(best.price*85)} - ${best.rating}⭐ - Stock ${best.stock}\nPlatform: Amazon/Myntra LIVE REAL\n\nREAL PRODUCTS EXACT:\n`;
         filtered.forEach((p,i)=>{ reply+=`${i+1}. ${p.title} - ₹${Math.round(p.price*85)} - ${p.rating}⭐ ${p.id===best.id?"<< BEST":""}\n`; });
         reply+=`\nSource: dummyjson.com LIVE - exact "${clean}" search\n✅ DUTY COMPLETE!`;
@@ -64,7 +60,6 @@ export async function POST(req){
       }
     }
 
-    // IF NEWS
     if(low.startsWith("news")||low.includes("news about")||low.includes("headlines")){
       const topic=q.replace(/news|about|headlines|latest/gi,"").trim()||"India";
       const titles=await realNews(topic);
@@ -76,14 +71,13 @@ export async function POST(req){
       }
     }
 
-    // FOR ANYTHING ELSE - REAL WIKIPEDIA EXACT SEARCH - cargoes, Elon Musk, biryani, anything!
+    // ANY VILLAGE / PLACE / OOTY / ANYTHING - REAL WIKI LIVE
     const wiki=await realWiki(q);
     if(wiki){
-      let reply=`JARVIS REALTIME SEARCH 🔴 ${today}\n\nQuery: "${q}" - Wikipedia LIVE exact search Boss!\n\n📍 ${wiki.title}:\n${wiki.extract}\n\n🔗 Source: ${wiki.content_urls?.desktop?.page}\n\n✅ DUTY COMPLETE - Real exact search done Boss!`;
+      let reply=`TRIP PLANNER REALTIME SEARCH 🔴 ${today}\n\nQuery: "${q}" - Wikipedia LIVE exact search Boss!\n\n📍 ${wiki.title}:\n${wiki.extract}\n\n🔗 Source: ${wiki.content_urls?.desktop?.page}\n\n✅ DUTY COMPLETE - Real exact village/place search done Boss!`;
       return NextResponse.json({reply, detectedPlace:wiki.title});
     }
 
-    // LAST FALLBACK - TRY PRODUCT AGAIN FOR ANY WORD
     const products2=await realProducts(q);
     if(products2.length>0){
       const best2=products2[0];
@@ -92,7 +86,7 @@ export async function POST(req){
       return NextResponse.json({reply, deals:deals2});
     }
 
-    return NextResponse.json({reply:`JARVIS REALTIME SEARCH 🔴 ${today}\n\nQuery "${q}" - Exact search chesa Boss, live lo data dorakaledu, try more specific word Boss like "cargo pants" or "Elon Musk"\n\n✅ DUTY COMPLETE!`});
+    return NextResponse.json({reply:`JARVIS REALTIME SEARCH 🔴 ${today}\n\nQuery "${q}" - Exact search chesa Boss, live lo data dorakaledu, try more specific like "cargo pants" or "Ooty village"\n\n✅ DUTY COMPLETE!`});
 
   }catch(e){
     return NextResponse.json({reply:`ERROR: ${e.message}`},{status:500});
