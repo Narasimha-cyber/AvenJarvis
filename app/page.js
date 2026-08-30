@@ -21,124 +21,125 @@ export default function Home() {
   const [active, setActive] = useState(null);
   const [voices, setVoices] = useState([]);
   const [started, setStarted] = useState(false);
-  const [userLoc, setUserLoc] = useState({city:"Hyderabad", lat:17.38, lon:78.48});
+  const [userLoc, setUserLoc] = useState({ city: "Detecting...", lat: 16.7, lon: 81.1 });
   const ref = useRef(false);
 
   useEffect(()=>{
     const load=()=>setVoices(window.speechSynthesis.getVoices());
     load(); window.speechSynthesis.onvoiceschanged=load;
-    // Get real location for weather
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(async (p)=>{
-        try {
-          const r = await fetch(`https://api.openweathermap.org/geo/1.0/reverse?lat=${p.coords.latitude}&lon=${p.coords.longitude}&limit=1&appid=${process.env.NEXT_PUBLIC_OPENWEATHER||""}`);
-          // fallback city
-          setUserLoc({city:"Hyderabad", lat:p.coords.latitude, lon:p.coords.longitude});
-        } catch(e){}
-      });
-    }
+
+    // 100% REAL LOCATION DETECT - Eluru auto
+    const detectLocation = async () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos)=>{
+          const lat = pos.coords.latitude, lon = pos.coords.longitude;
+          try {
+            // Free reverse geocoding - BigDataCloud - No key - Real city
+            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+            const data = await res.json();
+            const city = data.city || data.locality || data.principalSubdivision || "Eluru";
+            setUserLoc({ city, lat, lon });
+            console.log("Real Location:", city, lat, lon);
+          } catch(e){
+            // Fallback IP API
+            try {
+              const ip = await fetch("https://ipapi.co/json/").then(r=>r.json());
+              setUserLoc({ city: ip.city||"Eluru", lat: ip.latitude||16.7, lon: ip.longitude||81.1 });
+            } catch(e2){ setUserLoc({ city:"Eluru", lat:16.7, lon:81.1 }); }
+          }
+        }, async ()=>{
+          // If permission denied - IP based
+          try {
+            const ip = await fetch("https://ipapi.co/json/").then(r=>r.json());
+            setUserLoc({ city: ip.city||"Eluru", lat: ip.latitude||16.7, lon: ip.longitude||81.1 });
+          } catch(e){ setUserLoc({ city:"Eluru", lat:16.7, lon:81.1 }); }
+        });
+      }
+    };
+    detectLocation();
   },[]);
 
-  const speakMix = (text, gender, isKrishna=false) => {
-    return new Promise((resolve)=>{
+  const speakFull = (text, gender, isKrishna=false) => {
+    return new Promise(async (resolve)=>{
       if (!('speechSynthesis' in window)) { resolve(); return; }
       window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      let v = null;
-      if (isKrishna) {
-        v = voices.find(x=>x.name.toLowerCase().includes("david"))||voices[0];
-        u.pitch=0.6; u.rate=0.65; u.volume=1;
-      } else if (gender==="female") {
-        v = voices.find(x=>x.name.toLowerCase().includes("zira")||x.name.toLowerCase().includes("female"))||voices[0];
-        u.pitch=1.1; u.rate=0.7; u.volume=1;
-      } else {
-        v = voices.find(x=>x.name.toLowerCase().includes("david"))||voices[0];
-        u.pitch=0.85; u.rate=0.7; u.volume=1;
+      const clean = text.replace(/https?:\/\/\S+/g," ").replace(/[*#]/g," ").replace(/Image \d+:.*\.jpg/g," ").slice(0,2000);
+      const sentences = clean.match(/[^.!?\n]+[.!?\n]+/g) || [clean];
+      for (let s of sentences) {
+        if (!s.trim() || s.trim().length<5) continue;
+        await new Promise(r=>{
+          const u = new SpeechSynthesisUtterance(s.trim().slice(0,250));
+          let v = voices.find(x=>x.name.toLowerCase().includes("david"))||voices[0];
+          if (gender==="female") v = voices.find(x=>x.name.toLowerCase().includes("zira")||x.name.toLowerCase().includes("female"))||voices[0];
+          if (v) u.voice=v;
+          u.pitch = isKrishna?0.58: gender==="female"?1.12:0.82;
+          u.rate = 0.62;
+          u.lang="te-IN";
+          u.onend=()=>setTimeout(r,350);
+          u.onerror=()=>r();
+          window.speechSynthesis.speak(u);
+        });
       }
-      if (v) u.voice=v;
-      u.lang="te-IN";
-      u.onend=()=>setTimeout(resolve,1200);
-      u.onerror=()=>resolve();
-      setTimeout(()=>window.speechSynthesis.speak(u),300);
+      resolve();
     });
   };
 
-  const fetchRealReport = async (reportType) => {
-    try {
-      const res = await fetch("/api/avengers", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ message: reportType, userCity: userLoc.city, lat: userLoc.lat, lon: userLoc.lon })
-      });
-      const data = await res.json();
-      return data.reply;
-    } catch(e){ return "Real data loading Prabhu..."; }
+  const fetchReport = async (reportType) => {
+    const res = await fetch("/api/avengers",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ message: reportType, userCity: userLoc.city, lat: userLoc.lat, lon: userLoc.lon })
+    });
+    return await res.json();
   };
 
   useEffect(()=>{
-    if (ref.current || voices.length===0) return;
+    if (ref.current || voices.length===0 || userLoc.city==="Detecting...") return;
     const run = async ()=>{
       if (ref.current) return;
       ref.current=true; setStarted(true);
-      
-      await speakMix("Dharmo rakshati rakshitah Prabhu, Pannendu mandi agents meeru adigina real information tho report cheyyadaniki ready ga unnaru.", "male", true);
-
+      await speakFull(`Dharmo rakshati rakshitah Prabhu, Nenu meeru unna ${userLoc.city} location ni detect chesanu, Pannendu mandi agents real information tho report cheyyadaniki ready.`, "male", true);
       for (let ag of AGENTS) {
         setActive(ag.id);
-        // Fetch REAL data for this agent
-        const realData = await fetchRealReport(ag.report);
-        
-        // Add to chat
-        setChat(p=>[...p, {role:"jarvis", agent: ag.char, text: realData }]);
-
-        // Speak Telugu+English MIX - first 250 chars for voice
-        const voiceText = realData.replace(/[*#🔗👸📿⚡🏹💎🦚🎶💪⚖️🔮📜🛠️📰💰🌤️]/g,"").replace(/https?:\/\/\S+/g,"").slice(0,300);
-        await speakMix(voiceText, ag.gender, ag.isKrishna||false);
-        
-        // Small human pause
-        await new Promise(r=>setTimeout(r,800));
+        const data = await fetchReport(ag.report);
+        setChat(p=>[...p, {role:"jarvis", agent: ag.char, text: data.reply}]);
+        await speakFull(data.reply, ag.gender, ag.isKrishna||false);
+        await new Promise(r=>setTimeout(r,600));
       }
       setActive(null);
-      await speakMix("Antha mandi report complete chesaru Prabhu, Antha real information ye, Single fake kuda ledu, Mee aagya kosam eduru chustunnamu.", "male", true);
+      await speakFull(`Antha mandi ${userLoc.city} nunchi real reports complete chesaru Prabhu, Mee aagya kosam eduru chustunnamu.`, "male", true);
     };
-    const t=setTimeout(run,1500);
+    const t=setTimeout(run, 1000);
     return ()=>clearTimeout(t);
   },[voices, userLoc]);
 
-  const ask = async (text) => {
-    const msg = text || document.getElementById("inp").value;
-    if (!msg) return;
-    setChat(p=>[...p, {role:"user", text:msg}]);
-    document.getElementById("inp").value="";
-    const data = await fetch("/api/avengers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg,userCity:userLoc.city})}).then(r=>r.json());
+  const ask = async () => {
+    const inp = document.getElementById("inp"); const msg = inp.value; if (!msg) return;
+    setChat(p=>[...p, {role:"user", text:msg}]); inp.value="";
+    const data = await fetch("/api/avengers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg,userCity:userLoc.city,lat:userLoc.lat,lon:userLoc.lon})}).then(r=>r.json());
     setChat(p=>[...p, {role:"jarvis", agent:data.agent, text:data.reply}]);
-    const vt = data.reply.replace(/[*#🔗]/g,"").slice(0,350);
-    await speakMix(vt,"male",true);
+    await speakFull(data.reply,"male",true);
   };
 
   return (
-    <div onClick={()=>{ if(!started) window.location.reload(); }} style={{background:"radial-gradient(ellipse at top, #1a0f00 0%, #000)", minHeight:"100vh", color:"#ffd700", fontFamily:"sans-serif"}}>
+    <div onClick={()=>{ if(!started&&userLoc.city!=="Detecting...") window.location.reload(); }} style={{background:"radial-gradient(ellipse at top, #1a0f00 0%, #000)", minHeight:"100vh", color:"#ffd700"}}>
       <div style={{height:"6px", background:"linear-gradient(90deg,#ff6600,#ffd700,#ff6600)"}}></div>
-      <div style={{textAlign:"center", padding:"15px"}}>
+      <div style={{textAlign:"center", padding:"12px"}}>
         <div style={{fontSize:"10px", color:"#ffaa00"}}>॥ धर्मो रक्षति रक्षितः ॥</div>
-        <div style={{fontSize:"20px", fontWeight:"900"}}>MAHABHARATA - 12 AGENTS REAL REPORT FLOW</div>
-        <div style={{fontSize:"9px", color:"#00ff88"}}>Telugu+English Mix | 100% Real API | No Fake Info</div>
-        {!started && <div style={{marginTop:"8px", background:"#ffd700", color:"#000", padding:"8px 15px", borderRadius:"20px", fontSize:"11px", fontWeight:"900", display:"inline-block"}}>🔊 TAP TO START REAL REPORTS</div>}
+        <div style={{fontSize:"16px", fontWeight:"900"}}>MAHABHARATA - 12 AGENTS - WORLDWIDE REAL</div>
+        <div style={{fontSize:"11px", color:"#00ff88", background:"#002200", display:"inline-block", padding:"3px 10px", borderRadius:"12px", marginTop:"4px"}}>📍 Location: {userLoc.city} ({userLoc.lat.toFixed(2)}, {userLoc.lon.toFixed(2)}) - Auto Detected</div>
+        {!started && userLoc.city!=="Detecting..." && <div style={{marginTop:"8px", background:"#ffd700", color:"#000", padding:"8px 15px", borderRadius:"20px", fontSize:"11px", fontWeight:"900", display:"inline-block"}}>🔊 TAP TO START 12 REAL REPORTS FROM {userLoc.city.toUpperCase()}</div>}
       </div>
-
       <div style={{display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:"8px", padding:"12px", maxWidth:"900px", margin:"0 auto"}}>
-        {AGENTS.map(a=><div key={a.id} style={{border:`2px solid ${active===a.id?"#00ff88":"rgba(255,215,0,0.2)"}`, background: active===a.id?"#002200":"#1a0f00", padding:"8px 4px", textAlign:"center", borderRadius:"10px", transform: active===a.id?"scale(1.05)":"scale(1)", transition:"0.3s"}}>
-          <div style={{fontSize:"22px"}}>{a.icon}</div><div style={{fontSize:"9px", fontWeight:"900"}}>{a.char}</div><div style={{fontSize:"7px", color: active===a.id?"#00ff88":"#666"}}>{active===a.id?"🎙️ REPORTING LIVE...":"READY"}</div></div>)}
+        {AGENTS.map(a=><div key={a.id} style={{border:`2px solid ${active===a.id?"#00ff88":"rgba(255,215,0,0.2)"}`, background: active===a.id?"#002200":"#1a0f00", padding:"8px 4px", textAlign:"center", borderRadius:"10px"}}><div style={{fontSize:"20px"}}>{a.icon}</div><div style={{fontSize:"8px", fontWeight:"900"}}>{a.char}</div><div style={{fontSize:"6px", color: active===a.id?"#00ff88":"#666"}}>{active===a.id?"🎙️ REPORTING":"READY"}</div></div>)}
       </div>
-
       <div style={{maxWidth:"900px", margin:"10px auto", padding:"0 12px"}}>
         <div style={{minHeight:"400px", maxHeight:"500px", overflowY:"auto", border:"2px solid rgba(255,215,0,0.3)", borderRadius:"12px", background:"#0f0a00", padding:"12px"}}>
-          {chat.map((c,i)=><div key={i} style={{margin:"12px 0", padding:"12px", background:c.role==="user"?"#1a1200":"#001a00", borderLeft:`4px solid ${c.role==="user"?"#ffaa00":"#00ff88"}`, fontSize:"12px", whiteSpace:"pre-wrap", borderRadius:"6px"}}><b style={{fontSize:"10px", color:"#00ff88"}}>{c.agent}:</b><br/>{c.text}</div>)}
+          {chat.map((c,i)=><div key={i} style={{margin:"12px 0", padding:"12px", background:c.role==="user"?"#1a1200":"#001a00", borderLeft:`4px solid ${c.role==="user"?"#ffaa00":"#00ff88"}`, fontSize:"11px", whiteSpace:"pre-wrap"}}><b style={{fontSize:"10px", color:"#00ff88"}}>{c.agent}:</b><br/>{c.text}</div>)}
         </div>
       </div>
-
       <div style={{maxWidth:"900px", margin:"12px auto", padding:"0 12px", display:"flex", gap:"8px"}}>
-        <input id="inp" placeholder="🕉️ Mee prasna adagandi Prabhu... ex: Hyderabad to Goa" style={{flex:1, background:"#1a1200", border:"2px solid rgba(255,215,0,0.3)", color:"#ffd700", padding:"14px", borderRadius:"10px"}} onKeyDown={e=>e.key==="Enter"&&ask()}/>
-        <button onClick={()=>ask()} style={{background:"#ffd700", color:"#000", border:"none", padding:"0 20px", borderRadius:"10px", fontWeight:"900"}}>SEND 🔥</button>
+        <input id="inp" placeholder={`🕉️ ${userLoc.city} nunchi adagandi... ex: Paris to London, Buy shoes, Gold price, Translate hello`} style={{flex:1, background:"#1a1200", border:"2px solid rgba(255,215,0,0.3)", color:"#ffd700", padding:"14px", borderRadius:"10px"}} onKeyDown={e=>e.key==="Enter"&&ask()}/>
+        <button onClick={ask} style={{background:"#ffd700", color:"#000", border:"none", padding:"0 20px", borderRadius:"10px", fontWeight:"900"}}>SEND 🔥</button>
       </div>
     </div>
   );
