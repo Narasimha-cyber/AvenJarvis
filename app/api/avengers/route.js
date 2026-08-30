@@ -3,69 +3,68 @@ export async function POST(req) {
     const { message } = await req.json();
     const lower = message.toLowerCase();
 
-    const extractCity = () => {
-      const m = lower.match(/to\s+([a-zA-Z]+)/);
-      return m? m[1] : lower.includes("vizag")? "Vizag" : lower.includes("manali")? "Manali" : lower.includes("eluru")? "Eluru" : "Vizag";
-    };
-    const toCityRaw = extractCity();
-    const toCity = toCityRaw.charAt(0).toUpperCase() + toCityRaw.slice(1).toLowerCase();
-    const fromCity = lower.includes("eluru")? "Eluru" : "Hyderabad";
-
-    // --- REAL WEATHER API (100% Working Check) ---
-    let weatherInfo = null;
-    try {
-      const wRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${toCity}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric`);
-      const wData = await wRes.json();
-      if (wData.main) {
-        weatherInfo = `${wData.main.temp}°C, ${wData.weather[0].description}, Humidity ${wData.main.humidity}%`;
+    // Universal From-To Extractor
+    let fromCity = "Eluru", toCity = "Munnar";
+    const match = lower.match(/(?:from\s+)?([a-z]+)\s+to\s+([a-z]+)/i);
+    if (match) { fromCity = match[1]; toCity = match[2]; }
+    else {
+      const words = lower.split(" ");
+      const toIndex = words.indexOf("to");
+      if (toIndex > 0 && toIndex < words.length-1) {
+        fromCity = words[toIndex-1]; toCity = words[toIndex+1];
       }
-    } catch(e){ weatherInfo = "Weather data temporary unavailable"; }
+    }
+    fromCity = fromCity.charAt(0).toUpperCase() + fromCity.slice(1);
+    toCity = toCity.charAt(0).toUpperCase() + toCity.slice(1);
 
-    // --- REAL GOOGLE SEARCH FOR SHOPPING/NEWS ---
-    let googleResults = "";
-    if (lower.includes("buy") || lower.includes("cargo") || lower.includes("shop") || lower.includes("news") || lower.includes("youtube")) {
+    // 1. REAL WEATHER - OpenWeather (Ninna teesukunna key)
+    let weatherReal = "";
+    try {
+      const w = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${toCity}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric`);
+      const d = await w.json();
+      weatherReal = d.main? `${d.main.temp}°C, ${d.weather[0].description}, Humidity ${d.main.humidity}%` : `Weather for ${toCity} - ${d.message}`;
+    } catch(e){ weatherReal = "Weather API - Check OPENWEATHER_API_KEY"; }
+
+    // 2. REAL GOOGLE SEARCH - (Ninna teesukunna 2 keys)
+    let googleReal = "";
+    try {
+      const query = lower.includes("pant") || lower.includes("buy")? `${message} buy online india price` : `${fromCity} to ${toCity} distance trains buses`;
+      const g = await fetch(`https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_API_KEY}&cx=${process.env.GOOGLE_CX}&q=${encodeURIComponent(query)}&num=5`);
+      const gd = await g.json();
+      if (gd.items) {
+        googleReal = gd.items.map((it,i)=>`${i+1}. ${it.title}\n ${it.snippet}\n Link: ${it.link}`).join("\n\n");
+      } else {
+        googleReal = `Google API Error: ${gd.error?.message || "Check GOOGLE_SEARCH_API_KEY & GOOGLE_CX"}`;
+      }
+    } catch(e){ googleReal = "Google API - Check keys in Vercel"; }
+
+    // 3. REAL YOUTUBE SEARCH (Optional - ninna key unte)
+    let youtubeReal = "";
+    if (process.env.YOUTUBE_API_KEY && (lower.includes("youtube") || lower.includes("video"))) {
       try {
-        const gRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_API_KEY}&cx=${process.env.GOOGLE_CX}&q=${encodeURIComponent(message)}&num=4`);
-        const gData = await gRes.json();
-        if (gData.items) {
-          googleResults = gData.items.map((it,i)=>`${i+1}. ${it.title}\n${it.link}`).join("\n\n");
-        }
-      } catch(e){ googleResults = "Google API limit - check keys in Vercel"; }
+        const y = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(message)}&key=${process.env.YOUTUBE_API_KEY}&maxResults=3`);
+        const yd = await y.json();
+        if (yd.items) youtubeReal = yd.items.map(v=>`• ${v.snippet.title} - https://youtube.com/watch?v=${v.id.videoId}`).join("\n");
+      } catch(e){}
     }
 
-    let reply = "";
-    let agentTag = "";
+    const reply = `🕉️ **${fromCity.toUpperCase()} TO ${toCity.toUpperCase()} - 100% REAL APIS (No Hardcode)**
 
-    if (lower.includes("trip") || lower.includes("eluru") || lower.includes("vizag") || lower.includes("manali") || lower.includes("yatra")) {
-      agentTag = "ARJUNA + INDRA + KUBERA + VIDURA (REAL API)";
-      reply = `🕉️ **${fromCity.toUpperCase()} to ${toCity.toUpperCase()} MAHA YATRA - REAL DATA**
+⚡ **INDRA - REAL WEATHER API:**
+${toCity} lo ippudu: ${weatherReal}
 
-⚡ **INDRA (Weather) Real API Reported:** Prabhu, ${toCity} lo ippudu ${weatherInfo} - Yatra ki anukulam!
+🏹 **ARJUNA - REAL GOOGLE API:**
+${googleReal}
 
-🏹 **ARJUNA (Trip) Real Info:**
-- Marga: ${fromCity} -> ${toCity}
-- Real Trains: ${toCity==="Vizag"? "17210 Seshadri, 12718 Ratnachal, 12806 Janmabhoomi" : "12763 Padmavathi, 20889 Vande Bharat"}
-- Doora: ${toCity==="Vizag"? "350km, 7hrs" : "2100km, 2 days"}
+${youtubeReal? `🎶 **GANDHARVA - REAL YOUTUBE API:**\n${youtubeReal}\n` : ""}
 
-💎 **KUBERA (Finance) Real Calculation:**
-- Budget: ₹${toCity==="Vizag"? "4000-6500" : "9500-12000"}
-- Hotel: ₹${toCity==="Vizag"? "1200/night" : "1500/night"}
+🦚 **KRISHNA VANI:** Partha, Idi ninna manam collect chesina real APIs nunchi vachina data - okka line kuda hardcoded kadu! Ekkadi nunchi ekkadiki aina vastundi!
 
-🦚 **KRISHNA VANI (Base Voice - Deep Devotional):** Partha, ee yatra ki sannaham avvu. Sarvam Krishnarpanam!`;
-    } else if (googleResults) {
-      agentTag = "DRAUPADI + NARADA (REAL GOOGLE API)";
-      reply = `🕉️ **REAL GOOGLE SEARCH RESULTS:**
+🔑 Keys Status: OpenWeather: ${process.env.OPENWEATHER_API_KEY? "OK ✅" : "MISSING ❌"}, Google: ${process.env.GOOGLE_SEARCH_API_KEY? "OK ✅" : "MISSING ❌"}, CX: ${process.env.GOOGLE_CX? "OK ✅" : "MISSING ❌"}`;
 
-${googleResults}
+    return Response.json({ reply, agent: `REAL API - ${fromCity} to ${toCity}` });
 
-🦚 **KRISHNA VANI:** Ivi real-time Google nunchi vachina results Prabhu!`;
-    } else {
-      agentTag = "SRI KRISHNA PARAMATMA";
-      reply = `🦚 **KRISHNA (Base Deep Devotional Voice):** Prabhu, Nee aagya "${message}" ki - Weather: ${weatherInfo}. Nenu 12 mandi yodhas tho siddam. Trip ante Eluru to Vizag la adugu - real data isthanu!`;
-    }
-
-    return Response.json({ reply, agent: agentTag });
   } catch (e) {
-    return Response.json({ reply: `Error: ${e.message}. Vercel Env lo OPENWEATHER_API_KEY, GOOGLE_SEARCH_API_KEY, GOOGLE_CX check chey bro!`, agent: "ERROR" }, { status: 500 });
+    return Response.json({ reply: `Error: ${e.message} - Vercel Env Keys check chey bro!`, agent: "ERROR" }, { status: 500 });
   }
 }
