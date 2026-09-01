@@ -1,113 +1,112 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-export default function IronManJarvis(){
+export default function AvengersJarvis(){
   const canvasRef=useRef(null);
   const [agent,setAgent]=useState("JARVIS");
-  const [status,setStatus]=useState("SYSTEM ONLINE • CINEMATIC JARVIS READY • CLICK TO TALK");
+  const [status,setStatus]=useState("AVENGERS JARVIS ONLINE • TYPE OR TALK");
   const [chats,setChats]=useState([]);
+  const [input,setInput]=useState("");
   const [listening,setListening]=useState(false);
+  const [loading,setLoading]=useState(false);
 
-  // HUD Canvas - Iron Man style - No black screen
+  // HUD
   useEffect(()=>{
     const c=canvasRef.current; if(!c) return;
     const ctx=c.getContext("2d");
-    const resize=()=>{c.width=window.innerWidth; c.height=window.innerHeight;};
-    resize(); window.addEventListener("resize",resize);
+    const resize=()=>{c.width=innerWidth; c.height=innerHeight;};
+    resize(); addEventListener("resize",resize);
     let t=0;
     const draw=()=>{
       t+=0.015;
-      ctx.fillStyle="rgba(5,10,25,0.15)"; ctx.fillRect(0,0,c.width,c.height);
-      // Scanning lines
-      ctx.strokeStyle="rgba(0,255,255,0.08)"; ctx.lineWidth=1;
-      for(let i=0;i<c.width;i+=60){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,c.height); ctx.stroke(); }
-      for(let j=0;j<c.height;j+=60){ ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(c.width,j); ctx.stroke(); }
-      // Central reactor
+      ctx.fillStyle="rgba(5,10,25,0.12)"; ctx.fillRect(0,0,c.width,c.height);
+      ctx.strokeStyle="rgba(0,255,255,0.07)";
+      for(let i=0;i<c.width;i+=55){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,c.height); ctx.stroke(); }
+      for(let j=0;j<c.height;j+=55){ ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(c.width,j); ctx.stroke(); }
       const cx=c.width/2, cy=c.height/2;
-      ctx.shadowBlur=30; ctx.shadowColor="#00ffff";
-      ctx.strokeStyle="#00ffff"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,90+Math.sin(t*2)*5,0,Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx,cy,130+Math.cos(t)*8,0,Math.PI*2); ctx.stroke();
+      ctx.shadowBlur=25; ctx.shadowColor="#00ffff";
+      ctx.strokeStyle="#00ffff"; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(cx,cy,85+Math.sin(t*2)*4,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx,cy,125+Math.cos(t)*6,0,Math.PI*2); ctx.stroke();
       ctx.shadowBlur=0;
       requestAnimationFrame(draw);
     };
     draw();
-    return()=>window.removeEventListener("resize",resize);
+    return()=>removeEventListener("resize",resize);
   },[]);
 
   const speak=(text)=>{
     window.speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
-    u.pitch=0.45; u.rate=0.88; u.volume=1;
-    const v=window.speechSynthesis.getVoices().find(v=>v.name.includes("Google UK English Male")) || window.speechSynthesis.getVoices()[0];
+    u.pitch=0.45; u.rate=0.9;
+    const v=window.speechSynthesis.getVoices().find(v=>v.name.includes("Male")) || window.speechSynthesis.getVoices()[0];
     if(v) u.voice=v;
     u.onstart=()=>setStatus("JARVIS SPEAKING...");
-    u.onend=()=>setStatus("READY • ASK ANYTHING PRABHU");
+    u.onend=()=>setStatus("READY • ASK ANYTHING");
     window.speechSynthesis.speak(u);
   };
 
   const askBrain=async(msg)=>{
-    setStatus("🧠 JARVIS THINKING WITH 5 APIS...");
+    if(!msg.trim()) return;
+    setLoading(true);
+    setStatus("🧠 "+agent+" THINKING...");
+    setChats(s=>[...s,{q:msg,a:"..."}]);
+    setInput("");
     try{
       const res=await fetch("/api/brain",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({message:msg, activeAgent:agent})});
       const data=await res.json();
-      const reply=data.reply || data.answer || "Prabhu, nenu vinna, kani brain nunchi reply raledu.";
-      setChats(s=>[...s,{q:msg,a:reply}].slice(-5));
-      setStatus(reply.slice(0,120));
+      const reply=data.reply || "Prabhu brain nunchi reply raledu, kani nenu online.";
+      setChats(s=>{ const c=[...s]; c[c.length-1]={q:msg,a:reply}; return c.slice(-6); });
+      setStatus(reply.slice(0,140));
       speak(reply);
     }catch(e){
-      const fallback=`Prabhu, brain API connect avvatledu, kani nenu ${agent} ni. Meeku edhi kavali adagandi, nenu na knowledge tho cheptha.`;
-      setStatus(fallback); speak(fallback);
+      const r=`${agent} online Prabhu. "${msg}" vinna. Brain connect avvatledu kani nenu ready.`;
+      setChats(s=>{ const c=[...s]; c[c.length-1]={q:msg,a:r}; return c; });
+      setStatus(r); speak(r);
     }
+    setLoading(false);
   };
 
   const startTalk=()=>{
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR){ const q=prompt("Mic ledu - Type chey Prabhu, edhi adigina cheptha:"); if(q) askBrain(q); return; }
+    if(!SR){ setStatus("MIC NOT SUPPORTED • TYPE BELOW"); return; }
     const r=new SR(); r.lang="en-IN";
     r.onstart=()=>{setListening(true); setStatus("🎤 LISTENING...");};
-    r.onresult=(e)=>{ const t=e.results[0][0].transcript; setStatus("HEARD: "+t); askBrain(t); };
+    r.onresult=(e)=>askBrain(e.results[0][0].transcript);
     r.onend=()=>setListening(false);
     r.start();
   };
 
-  useEffect(()=>{ window.speechSynthesis.getVoices(); setTimeout(()=>{ speak("Systems online Prabhu. I am Jarvis, cinematic edition. Ask me anything, I am like Meta AI, real intelligence, ready."); },600); },[]);
+  useEffect(()=>{ window.speechSynthesis.getVoices(); },[]);
 
   return(
     <div style={{width:"100vw", height:"100vh", background:"#020617", overflow:"hidden", position:"relative", fontFamily:"monospace"}}>
       <canvas ref={canvasRef} style={{position:"absolute", inset:0}} />
-
-      {/* Header HUD */}
-      <div style={{position:"relative", zIndex:10, display:"flex", justifyContent:"space-between", padding:"14px 18px", color:"#00ffff", fontSize:"10px", letterSpacing:"3px", borderBottom:"1px solid rgba(0,255,255,0.2)", background:"rgba(0,0,0,0.6)"}}>
-        <span>● AVENJARVIS MARK-7 • REAL AI</span>
-        <span>{agent} • ELURU</span>
+      <div style={{position:"relative", zIndex:10, display:"flex", justifyContent:"space-between", padding:"12px 16px", color:"#00ffff", fontSize:"10px", letterSpacing:"3px", borderBottom:"1px solid rgba(0,255,255,0.2)", background:"rgba(0,0,0,0.7)"}}>
+        <span>● AVENGERS • STARK INDUSTRIES</span><span>{agent} • MARK-50</span>
       </div>
-
-      {/* Agent selector - Cinematic */}
-      <div style={{position:"relative", zIndex:10, display:"flex", gap:"8px", padding:"10px", flexWrap:"wrap", background:"rgba(0,0,0,0.4)"}}>
-        {["JARVIS","KRISHNA","FRIDAY","DRAUPADI","ARJUNA"].map(a=>(
-          <button key={a} onClick={()=>setAgent(a)} style={{padding:"6px 14px", borderRadius:"20px", background: agent===a?"#00ffff":"transparent", color: agent===a?"#000":"#00ffff", border:"1px solid #00ffff", fontSize:"10px", fontWeight:"900", cursor:"pointer"}}>{a}</button>
+      <div style={{position:"relative", zIndex:10, display:"flex", gap:"7px", padding:"10px", flexWrap:"wrap", background:"rgba(0,0,0,0.5)"}}>
+        {["JARVIS","FRIDAY","VERONICA","KAREN","EDITH","VISION"].map(a=>(
+          <button key={a} onClick={()=>setAgent(a)} style={{padding:"6px 14px", borderRadius:"20px", background:agent===a?"#00ffff":"transparent", color:agent===a?"#000":"#00ffff", border:"1px solid #00ffff", fontSize:"10px", fontWeight:900, cursor:"pointer"}}>{a}</button>
         ))}
       </div>
-
-      {/* Center */}
-      <div style={{position:"relative", zIndex:10, height:"58vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center"}}>
-        <div style={{width:"140px", height:"140px", borderRadius:"50%", border:"2px solid #00ffff", boxShadow:"0 0 50px #00ffff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"12px", color:"#00ffff", background:"radial-gradient(circle, rgba(0,255,255,0.2), transparent)", animation:"pulse 2s infinite"}}>JARVIS CORE</div>
-        <div style={{color:"#fff", marginTop:"18px", fontSize:"11px", maxWidth:"700px", textAlign:"center", padding:"0 20px", lineHeight:"18px", background:"rgba(0,0,0,0.7)", borderRadius:"10px", border:"1px solid rgba(0,255,255,0.2)"}}>
-          {chats.map((c,i)=>(<div key={i} style={{margin:"8px 0"}}><div style={{color:"#888", fontSize:"9px"}}>YOU: {c.q}</div><div style={{color:"#00ffff"}}>{c.a}</div></div>))}
-          {chats.length===0 && <div>Ask anything Prabhu - Like Meta AI - Weather, code, story, knowledge - Real Iron Man Jarvis</div>}
+      <div style={{position:"relative", zIndex:10, height:"45vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 16px"}}>
+        <div style={{width:"120px", height:"120px", borderRadius:"50%", border:"2px solid #00ffff", boxShadow:"0 0 40px #00ffff", display:"flex", alignItems:"center", justifyContent:"center", color:"#00ffff", background:"radial-gradient(circle, rgba(0,255,255,0.15), transparent)"}}>{agent}</div>
+        <div style={{marginTop:"16px", width:"100%", maxWidth:"720px", maxHeight:"28vh", overflowY:"auto", background:"rgba(0,0,0,0.75)", border:"1px solid rgba(0,255,255,0.2)", borderRadius:"12px", padding:"12px"}}>
+          {chats.length===0 && <div style={{color:"#aaa", fontSize:"11px", textAlign:"center"}}>Type anything bro - Like real Jarvis - Weather, code, jokes, knowledge - Avengers style</div>}
+          {chats.map((c,i)=>(<div key={i} style={{margin:"10px 0"}}><div style={{color:"#666", fontSize:"9px"}}>YOU: {c.q}</div><div style={{color:"#00ffff", fontSize:"12px", marginTop:"4px"}}>{c.a}</div></div>))}
         </div>
       </div>
-
-      {/* Bottom Talk */}
-      <div style={{position:"absolute", bottom:0, left:0, right:0, zIndex:20, padding:"16px", background:"linear-gradient(0deg, #000 70%, transparent)", display:"flex", gap:"12px", alignItems:"center"}}>
-        <button onClick={startTalk} style={{width:"72px", height:"72px", borderRadius:"50%", background:listening?"#ff0033":"#00ffff", border:"none", fontSize:"28px", cursor:"pointer", boxShadow:listening?"0 0 30px red":"0 0 30px #00ffff", transition:"0.2s"}}>{listening?"●":"🎤"}</button>
-        <div style={{flex:1, background:"rgba(0,0,0,0.9)", border:"1px solid #00ffff", borderRadius:"14px", padding:"14px"}}>
-          <div style={{color:"#fff", fontSize:"13px"}}>{status}</div>
-          <div style={{color:"#00ffff", fontSize:"8px", marginTop:"6px", letterSpacing:"2px"}}>REAL JARVIS • 5 APIS • NO GAME • CINEMATIC • CLICK MIC AND ASK ANYTHING LIKE META AI</div>
+      <div style={{position:"absolute", bottom:0, left:0, right:0, zIndex:20, padding:"12px", background:"linear-gradient(0deg, #000 80%, transparent)"}}>
+        <div style={{display:"flex", gap:"10px", alignItems:"center"}}>
+          <button onClick={startTalk} style={{width:"56px", height:"56px", borderRadius:"50%", background:listening?"#ff0033":"#00ffff", border:"none", fontSize:"22px", cursor:"pointer", boxShadow:listening?"0 0 20px red":"0 0 20px #00ffff"}}>{listening?"●":"🎤"}</button>
+          <div style={{flex:1, display:"flex", gap:"8px"}}>
+            <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter" && askBrain(input)} placeholder={`Ask ${agent} anything...`} style={{flex:1, background:"rgba(0,0,0,0.9)", border:"1px solid #00ffff", borderRadius:"12px", padding:"14px 16px", color:"#fff", outline:"none", fontSize:"13px"}} />
+            <button onClick={()=>askBrain(input)} disabled={loading} style={{padding:"0 22px", borderRadius:"12px", background:"#00ffff", color:"#000", border:"none", fontWeight:900, cursor:"pointer"}}>{loading?"...":"SEND"}</button>
+          </div>
         </div>
+        <div style={{color:"#00ffff", fontSize:"8px", marginTop:"8px", letterSpacing:"2px", textAlign:"center"}}>{status} • AVENGERS JARVIS • REAL AI • NO MAHABHARAT</div>
       </div>
-
-      <style>{`@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}`}</style>
     </div>
   );
 }
