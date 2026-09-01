@@ -2,122 +2,125 @@
 import { useEffect, useRef, useState } from "react";
 
 const AGENTS = [
-  { id:6, name:"BRAIN", char:"KRISHNA", icon:"🦚", color:0xff8c00, isBrain:true },
-  { id:1, name:"SHOPPING", char:"DRAUPADI", icon:"👸", color:0xff69b4 },
-  { id:2, name:"CODING", char:"ARJUNA", icon:"🏹", color:0x00aaff },
-  { id:3, name:"FOOD", char:"BHIMA", icon:"🍯", color:0xffaa00 },
-  { id:4, name:"TRAVEL", char:"SAHADEVA", icon:"🗺️", color:0x00ffaa },
-  { id:5, name:"HEALTH", char:"NAKULA", icon:"🌿", color:0x55ff55 },
-  { id:7, name:"MONEY", char:"KUBERA", icon:"💰", color:0xffff00 },
-  { id:8, name:"STUDY", char:"VYASA", icon:"📚", color:0xffffff },
-  { id:9, name:"MUSIC", char:"GANDHARVA", icon:"🎵", color:0xff00ff },
-  { id:10, name:"FIGHT", char:"KARNA", icon:"⚔️", color:0xff0000 },
-  { id:11, name:"PEACE", char:"YUDHISHTIRA", icon:"🕊️", color:0xaaffff },
+  { id:6, char:"KRISHNA", icon:"🦚", color:0xff8c00 },
+  { id:1, char:"DRAUPADI", icon:"👸", color:0xff69b4 },
+  { id:2, char:"ARJUNA", icon:"🏹", color:0x00aaff },
+  { id:3, char:"BHIMA", icon:"🍯", color:0xffaa00 },
+  { id:4, char:"SAHADEVA", icon:"🗺️", color:0x00ffaa },
+  { id:5, char:"NAKULA", icon:"🌿", color:0x55ff55 },
+  { id:7, char:"KUBERA", icon:"💰", color:0xffff00 },
+  { id:8, char:"VYASA", icon:"📚", color:0xffffff },
+  { id:9, char:"GANDHARVA", icon:"🎵", color:0xff00ff },
+  { id:10, char:"KARNA", icon:"⚔️", color:0xff0000 },
+  { id:11, char:"YUDHISHTIRA", icon:"🕊️", color:0xaaffff },
 ];
 
-export default function AvenJarvisMahabharatam() {
+export default function AvenJarvisVideoRef() {
   const mountRef = useRef(null);
   const [active, setActive] = useState(AGENTS[0]);
-  const [status, setStatus] = useState("Dharmo Rakshati Rakshitah Prabhu 🙏 Click to enable voice");
-  const [reply, setReply] = useState("Eluru nunchi siddham Prabhu...");
-  const voiceUnlocked = useRef(false);
+  const [status, setStatus] = useState("Click anywhere to enable voice 🙏 - Dharmo Rakshati Rakshitah");
+  const [reply, setReply] = useState("Video reference la loading Prabhu...");
+  const [input, setInput] = useState("");
+  const unlocked = useRef(false);
 
-  const speakKrishna = (txt) => {
-    if(!txt) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(txt.slice(0,250));
-    const vs = window.speechSynthesis.getVoices();
-    u.voice = vs.find(v=>v.name.includes("Male")) || vs.find(v=>v.name.includes("David")) || vs[0];
-    u.pitch = 0.52; u.rate = 0.48; u.lang="te-IN"; u.volume=1;
-    window.speechSynthesis.speak(u);
+  const speak = (txt) => {
+    if(!txt ||!unlocked.current) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(txt.slice(0,280));
+    const voices = speechSynthesis.getVoices();
+    u.voice = voices.find(v=>v.name.includes("David")) || voices[0];
+    u.pitch=0.52; u.rate=0.48; u.lang="te-IN";
+    speechSynthesis.speak(u);
   };
 
-  const askReal = async (msg, agent=active) => {
-    setActive(agent);
-    setStatus(`${agent.icon} ${agent.char} - Real 5 keys tho alochisthunnadu...`);
+  const ask = async (msg, ag=active) => {
+    setActive(ag); setStatus(`${ag.icon} ${ag.char} - Real brain calling...`);
     try{
-      const res = await fetch("/api/brain",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({message:msg, activeAgent:agent.char, location:"Eluru, AP"})});
+      const res = await fetch("/api/brain",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({message:msg, activeAgent:ag.char, location:"Eluru, AP"})});
       const data = await res.json();
-      setReply(data.reply);
-      setStatus(`${agent.icon} ${agent.char} - ${data.status}`);
-      speakKrishna(data.reply);
-    }catch{ setReply("Brain error Prabhu"); }
+      setReply(data.reply); setStatus(`${ag.icon} ${ag.char} - ${data.status}`);
+      speak(data.reply);
+    }catch(e){ setReply("Network error Prabhu - /api/brain check chey"); }
   };
 
   useEffect(()=>{
-    let cancelled=false; let renderer, scene, camera, animationId;
-    const init = async () => {
+    let cancel=false; let renderer,camera,scene,animId;
+    (async()=>{
       const THREE = await import("three");
-      if(cancelled ||!mountRef.current) return;
-
-      scene = new THREE.Scene(); scene.fog = new THREE.Fog(0x000011, 2, 8);
-      camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
-      camera.position.z = 3.5;
-      renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
-      renderer.setPixelRatio(window.devicePixelRatio);
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      if(cancel ||!mountRef.current) return;
+      scene=new THREE.Scene(); scene.fog=new THREE.Fog(0x020210,3,9);
+      camera=new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 1000); camera.position.set(0,0.1,2.8);
+      renderer=new THREE.WebGLRenderer({antialias:true, alpha:true}); renderer.setPixelRatio(Math.min(window.devicePixelRatio,2)); renderer.setSize(window.innerWidth, window.innerHeight);
       mountRef.current.innerHTML=""; mountRef.current.appendChild(renderer.domElement);
 
-      // BLUE WIREFRAME HEAD - Reference la
-      const head = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 64), new THREE.MeshStandardMaterial({color:0x1e90ff, wireframe:true, transparent:true, opacity:0.45, emissive:0x0044ff}));
-      scene.add(head);
-      const core = new THREE.Mesh(new THREE.SphereGeometry(0.35, 32, 32), new THREE.MeshBasicMaterial({color:0xff7f00}));
-      scene.add(core);
-      const light = new THREE.PointLight(0x00ffff, 2, 5); light.position.set(0,1.2,1); scene.add(light);
-      scene.add(new THREE.AmbientLight(0x2233ff, 0.6));
-      const pl = new THREE.PointLight(0xffaa00, 2, 10); pl.position.set(2,2,2); scene.add(pl);
+      // VIDEO REF HEAD - Capsule like human
+      const headGroup=new THREE.Group();
+      // Body wireframe
+      const bodyGeo=new THREE.CapsuleGeometry(0.55,0.9,4,32);
+      const bodyMat=new THREE.MeshBasicMaterial({color:0x00aaff, wireframe:true, transparent:true, opacity:0.35});
+      const body=new THREE.Mesh(bodyGeo, bodyMat); body.position.y=-0.15; headGroup.add(body);
+      // Orange face core - like video
+      const faceGeo=new THREE.SphereGeometry(0.38,32,32);
+      const faceMat=new THREE.MeshBasicMaterial({color:0xff8c00});
+      const face=new THREE.Mesh(faceGeo, faceMat); face.position.set(0,0.35,0.15); headGroup.add(face);
+      // Chest glow
+      const chest=new THREE.Mesh(new THREE.SphereGeometry(0.18,16,16), new THREE.MeshBasicMaterial({color:0xffaa00, transparent:true, opacity:0.8})); chest.position.set(0,-0.3,0.2); headGroup.add(chest);
+      scene.add(headGroup);
 
-      // STARS
-      const mGeo = new THREE.BufferGeometry(); const cnt=4000; const pos=new Float32Array(cnt*3); for(let i=0;i<cnt*3;i++) pos[i]=(Math.random()-0.5)*12; mGeo.setAttribute('position', new THREE.BufferAttribute(pos,3));
-      const mounts = new THREE.Points(mGeo, new THREE.PointsMaterial({color:0xffd700, size:0.03})); mounts.position.y=-1.5; scene.add(mounts);
+      // GOLD+BLUE MOUNTAINS - particles like video
+      const mountGeo=new THREE.BufferGeometry(); const c=6000; const p=new Float32Array(c*3); const col=new Float32Array(c*3);
+      for(let i=0;i<c;i++){
+        const x=(Math.random()-0.5)*10; const z=(Math.random()-0.5)*6-2; const y=Math.sin(x)*0.8 + Math.random()*0.8 -1.2;
+        p[i*3]=x; p[i*3+1]=y; p[i*3+2]=z;
+        const isGold=Math.random()>0.4; col[i*3]=isGold?1:0; col[i*3+1]=isGold?0.84:0.6; col[i*3+2]=isGold?0:1;
+      }
+      mountGeo.setAttribute('position', new THREE.BufferAttribute(p,3));
+      mountGeo.setAttribute('color', new THREE.BufferAttribute(col,3));
+      const mountMat=new THREE.PointsMaterial({size:0.04, vertexColors:true, transparent:true});
+      const mountains=new THREE.Points(mountGeo, mountMat); scene.add(mountains);
 
-      // 11 ORBS - Small perfect spheres
-      const orbs=[]; AGENTS.forEach((ag,i)=>{ const o=new THREE.Mesh(new THREE.SphereGeometry(0.13,16,16), new THREE.MeshBasicMaterial({color:ag.color})); o.userData={ag, angle:(i/AGENTS.length)*Math.PI*2, baseY: Math.sin(i)*0.4}; scene.add(o); orbs.push(o); });
+      scene.add(new THREE.AmbientLight(0x2233ff,0.7));
+      const pl=new THREE.PointLight(0x00ffff,2,5); pl.position.set(0,1,1); scene.add(pl);
 
       let t=0;
-      const animate = () => {
-        animationId=requestAnimationFrame(animate); t+=0.012;
-        head.rotation.y+=0.003; head.scale.y=1+Math.sin(t)*0.05;
-        core.scale.setScalar(1+Math.sin(t*2.5)*0.15);
-        mounts.rotation.y=Math.sin(t*0.15)*0.12;
-        orbs.forEach(o=>{ o.userData.angle+=0.004; const r=2.2; o.position.x=Math.cos(o.userData.angle)*r; o.position.z=Math.sin(o.userData.angle)*r; o.position.y=o.userData.baseY+Math.sin(t+o.userData.angle)*0.3; });
+      const loop=()=>{ animId=requestAnimationFrame(loop); t+=0.01;
+        headGroup.rotation.y=Math.sin(t*0.3)*0.15;
+        face.scale.setScalar(1+Math.sin(t*2.2)*0.12);
+        face.material.color.setHSL(0.08+Math.sin(t)*0.02,1,0.55);
+        mountains.rotation.y=Math.sin(t*0.1)*0.08;
         renderer.render(scene,camera);
-      }; animate();
+      }; loop();
 
       const onResize=()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
-      const onMove=(e)=>{ head.rotation.y=(e.clientX/window.innerWidth-0.5)*0.8; head.rotation.x=(e.clientY/window.innerHeight-0.5)*0.4; };
-      const onClick=(e)=>{
-        // VOICE UNLOCK - First click
-        if(!voiceUnlocked.current){ voiceUnlocked.current=true; window.speechSynthesis.getVoices(); speakKrishna("Dharmo Rakshati Rakshitah Prabhu, AvenJarvis siddham"); setStatus("Voice enabled Prabhu 🙏"); }
-        const ray=new THREE.Raycaster(); const mouse=new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
-        ray.setFromCamera(mouse,camera); const hits=ray.intersectObjects(orbs); if(hits.length>0){ const ag=hits[0].object.userData.ag; askReal(ag.char+" gurinchi",ag); }
+      const onMove=(e)=>{ const x=(e.clientX/window.innerWidth-0.5); headGroup.rotation.y=x*0.8; setStatus(`Tracking Prabhu - Eluru - ${active.char}`); };
+      const onFirstClick=()=>{
+        if(!unlocked.current){ unlocked.current=true; speechSynthesis.getVoices(); speak("Dharmo Rakshati Rakshitah Prabhu, AvenJarvis video reference la siddham"); setStatus("Voice enabled - Pinch to select agent"); }
       };
-      window.addEventListener("resize",onResize); window.addEventListener("mousemove",onMove); window.addEventListener("click",onClick);
-    };
-    init();
-    return ()=>{ cancelled=true; cancelAnimationFrame(animationId); window.removeEventListener("resize",()=>{}); };
-  },[]);
+      window.addEventListener("resize",onResize); window.addEventListener("mousemove",onMove); window.addEventListener("click",onFirstClick);
+    })();
+    return()=>{ cancel=true; cancelAnimationFrame(animId); };
+  },[active]);
 
   return (
     <div className="relative w-screen h-screen bg-[#020210] overflow-hidden font-mono">
-      <div ref={mountRef} className="absolute inset-0 w-full h-full" />
+      <div ref={mountRef} className="absolute inset-0" />
       <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-        <div className="text-cyan-300 text-xl tracking-[0.3em]">AVENJARVIS</div>
-        <div className="text-orange-400 text-[10px] tracking-widest">MAHABHARATAM • ELURU • {active.char} • 5 KEYS REAL</div>
-        <div className="text-white/60 text-xs mt-1">{status}</div>
+        <div className="text-cyan-300 text-xl tracking-[0.4em]">AVENJARVIS</div>
+        <div className="text-orange-400 text-[10px]">MAHABHARATAM • VIDEO REF • {active.char} • ELURU</div>
+        <div className="text-white/60 text-[11px] mt-1">{status}</div>
       </div>
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 space-y-2">
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 space-y-1.5">
         {AGENTS.map(a=>(
-          <div key={a.id} onClick={()=>askReal(a.char+" gurinchi",a)} className={`px-3 py-1.5 rounded border text-[10px] cursor-pointer transition-all ${active.id===a.id?"bg-cyan-500/20 border-cyan-400 text-cyan-200 scale-110":"bg-black/40 border-white/10 text-white/50 hover:border-cyan-300/50"}`}>{a.icon} {a.char}</div>
+          <div key={a.char} onClick={()=>ask(a.char+" help",a)} className={`px-3 py-1.5 rounded border text-[10px] cursor-pointer ${active.char===a.char?"bg-cyan-500/30 border-cyan-400 text-cyan-100":"bg-black/40 border-white/10 text-white/50"}`}>{a.icon} {a.char}</div>
         ))}
       </div>
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 w-72 p-4 rounded bg-black/60 border border-orange-500/30">
-        <div className="text-orange-300 text-xs">🦚 KRISHNA BRAIN - REAL</div>
-        <div className="text-white/80 text-[11px] mt-2 leading-relaxed max-h-[200px] overflow-y-auto">{reply}</div>
-        <button onClick={()=>speakKrishna(reply)} className="mt-3 w-full py-2 bg-orange-500/20 border border-orange-400 rounded text-orange-300 text-[10px]">🔊 MAATLAADU - Voice 0.52</button>
-        <div className="text-[9px] text-white/30 mt-2">First click anywhere to enable voice (browser rule)</div>
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 w-80 p-4 rounded-xl bg-black/70 border border-orange-500/30 backdrop-blur">
+        <div className="text-orange-300 text-xs">🦚 {active.char} BRAIN - REAL 5 KEYS</div>
+        <div className="text-white/80 text-[11px] mt-3 leading-relaxed max-h-[180px] overflow-y-auto">{reply}</div>
+        <div className="flex gap-2 mt-3"><input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&ask(input)} placeholder="Prabhu adagandi..." className="flex-1 bg-black/60 border border-white/20 rounded px-2 py-2 text-[11px] outline-none" /><button onClick={()=>ask(input)} className="px-3 py-2 bg-cyan-500/20 border border-cyan-400 rounded text-cyan-300 text-[10px]">SEND</button></div>
+        <button onClick={()=>speak(reply)} className="mt-2 w-full py-2 bg-orange-500/20 border border-orange-400 rounded text-orange-300 text-[10px]">🔊 MAATLAADU - Video voice 0.52/0.48</button>
       </div>
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/40 text-[10px] text-center pointer-events-none">My AI assistant has a face now • Track motion • Pinch agent • Autonomous loops • 5 keys real info</div>
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-white/40 text-[10px] text-center">My AI assistant has a face now • It can track motion • Can respond to gestures like pinching • It runs autonomous loops<br/>👋 Move = Track • 👌 Click = Pinch • 🦚 Autonomous breathing</div>
     </div>
   );
 }
