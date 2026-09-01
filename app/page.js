@@ -1,126 +1,107 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-const AGENTS = [
-  { id:6, char:"KRISHNA", icon:"🦚", color:0xff8c00 },
-  { id:1, char:"DRAUPADI", icon:"👸", color:0xff69b4 },
-  { id:2, char:"ARJUNA", icon:"🏹", color:0x00aaff },
-  { id:3, char:"BHIMA", icon:"🍯", color:0xffaa00 },
-  { id:4, char:"SAHADEVA", icon:"🗺️", color:0x00ffaa },
-  { id:5, char:"NAKULA", icon:"🌿", color:0x55ff55 },
-  { id:7, char:"KUBERA", icon:"💰", color:0xffff00 },
-  { id:8, char:"VYASA", icon:"📚", color:0xffffff },
-  { id:9, char:"GANDHARVA", icon:"🎵", color:0xff00ff },
-  { id:10, char:"KARNA", icon:"⚔️", color:0xff0000 },
-  { id:11, char:"YUDHISHTIRA", icon:"🕊️", color:0xaaffff },
+const AGENTS_WALK = [
+  {char:"DRAUPADI", icon:"👸", color:0xff69b4, role:"Shopping", msg:"Prabhu shopping offers ready"},
+  {char:"ARJUNA", icon:"🏹", color:0x00aaff, role:"Coding", msg:"Prabhu code ready"},
+  {char:"BHIMA", icon:"🍯", color:0xffaa00, role:"Food", msg:"Prabhu food ready"},
+  {char:"SAHADEVA", icon:"🗺️", color:0x00ffaa, role:"Travel", msg:"Prabhu travel plan ready"},
+  {char:"NAKULA", icon:"🌿", color:0x55ff55, role:"Health", msg:"Prabhu health tips ready"},
+  {char:"KUBERA", icon:"💰", color:0xffff00, role:"Money", msg:"Prabhu money plan ready"},
+  {char:"VYASA", icon:"📚", color:0xffffff, role:"Study", msg:"Prabhu study ready"},
+  {char:"GANDHARVA", icon:"🎵", color:0xff00ff, role:"Music", msg:"Prabhu music ready"},
+  {char:"KARNA", icon:"⚔️", color:0xff0000, role:"Fight", msg:"Prabhu fight tips ready"},
+  {char:"YUDHISHTIRA", icon:"🕊️", color:0xaaffff, role:"Peace", msg:"Prabhu peace mantra ready"},
 ];
 
-export default function AvenJarvisVideoRef() {
+export default function GokulamMahabharatam() {
   const mountRef = useRef(null);
-  const [active, setActive] = useState(AGENTS[0]);
-  const [status, setStatus] = useState("Click anywhere to enable voice 🙏 - Dharmo Rakshati Rakshitah");
-  const [reply, setReply] = useState("Video reference la loading Prabhu...");
-  const [input, setInput] = useState("");
-  const unlocked = useRef(false);
-
-  const speak = (txt) => {
-    if(!txt ||!unlocked.current) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(txt.slice(0,280));
-    const voices = speechSynthesis.getVoices();
-    u.voice = voices.find(v=>v.name.includes("David")) || voices[0];
-    u.pitch=0.52; u.rate=0.48; u.lang="te-IN";
-    speechSynthesis.speak(u);
-  };
-
-  const ask = async (msg, ag=active) => {
-    setActive(ag); setStatus(`${ag.icon} ${ag.char} - Real brain calling...`);
-    try{
-      const res = await fetch("/api/brain",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({message:msg, activeAgent:ag.char, location:"Eluru, AP"})});
-      const data = await res.json();
-      setReply(data.reply); setStatus(`${ag.icon} ${ag.char} - ${data.status}`);
-      speak(data.reply);
-    }catch(e){ setReply("Network error Prabhu - /api/brain check chey"); }
-  };
+  const [status, setStatus] = useState("Gokulam loading Prabhu... Krishna vasthunnadu 🦚");
+  const [reports, setReports] = useState([]);
+  const [active, setActive] = useState(null);
 
   useEffect(()=>{
-    let cancel=false; let renderer,camera,scene,animId;
+    let dead=false; let renderer, camera, scene, anim, groupKrishna, agents=[];
     (async()=>{
       const THREE = await import("three");
-      if(cancel ||!mountRef.current) return;
-      scene=new THREE.Scene(); scene.fog=new THREE.Fog(0x020210,3,9);
-      camera=new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 1000); camera.position.set(0,0.1,2.8);
-      renderer=new THREE.WebGLRenderer({antialias:true, alpha:true}); renderer.setPixelRatio(Math.min(window.devicePixelRatio,2)); renderer.setSize(window.innerWidth, window.innerHeight);
+      if(dead) return;
+      scene=new THREE.Scene(); scene.background=new THREE.Color(0x87CEEB); // Gokulam sky
+      scene.fog=new THREE.Fog(0x87CEEB, 8, 20);
+      camera=new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000); camera.position.set(0,2.5,7);
+      camera.lookAt(0,0,0);
+      renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
       mountRef.current.innerHTML=""; mountRef.current.appendChild(renderer.domElement);
 
-      // VIDEO REF HEAD - Capsule like human
-      const headGroup=new THREE.Group();
-      // Body wireframe
-      const bodyGeo=new THREE.CapsuleGeometry(0.55,0.9,4,32);
-      const bodyMat=new THREE.MeshBasicMaterial({color:0x00aaff, wireframe:true, transparent:true, opacity:0.35});
-      const body=new THREE.Mesh(bodyGeo, bodyMat); body.position.y=-0.15; headGroup.add(body);
-      // Orange face core - like video
-      const faceGeo=new THREE.SphereGeometry(0.38,32,32);
-      const faceMat=new THREE.MeshBasicMaterial({color:0xff8c00});
-      const face=new THREE.Mesh(faceGeo, faceMat); face.position.set(0,0.35,0.15); headGroup.add(face);
-      // Chest glow
-      const chest=new THREE.Mesh(new THREE.SphereGeometry(0.18,16,16), new THREE.MeshBasicMaterial({color:0xffaa00, transparent:true, opacity:0.8})); chest.position.set(0,-0.3,0.2); headGroup.add(chest);
-      scene.add(headGroup);
+      // GOKULAM GROUND - Green
+      const ground=new THREE.Mesh(new THREE.PlaneGeometry(30,30), new THREE.MeshStandardMaterial({color:0x7CFC00}));
+      ground.rotation.x=-Math.PI/2; ground.position.y=-1; scene.add(ground);
+      // Huts + Trees simple
+      for(let i=0;i<6;i++){ const hut=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.2,6), new THREE.MeshStandardMaterial({color:0x8B4513})); hut.position.set((Math.random()-0.5)*12, -0.2, (Math.random()-0.5)*8 -3); scene.add(hut); }
+      scene.add(new THREE.AmbientLight(0xffffff,0.9)); const sun=new THREE.DirectionalLight(0xfff8dc,1); sun.position.set(5,8,3); scene.add(sun);
 
-      // GOLD+BLUE MOUNTAINS - particles like video
-      const mountGeo=new THREE.BufferGeometry(); const c=6000; const p=new Float32Array(c*3); const col=new Float32Array(c*3);
-      for(let i=0;i<c;i++){
-        const x=(Math.random()-0.5)*10; const z=(Math.random()-0.5)*6-2; const y=Math.sin(x)*0.8 + Math.random()*0.8 -1.2;
-        p[i*3]=x; p[i*3+1]=y; p[i*3+2]=z;
-        const isGold=Math.random()>0.4; col[i*3]=isGold?1:0; col[i*3+1]=isGold?0.84:0.6; col[i*3+2]=isGold?0:1;
-      }
-      mountGeo.setAttribute('position', new THREE.BufferAttribute(p,3));
-      mountGeo.setAttribute('color', new THREE.BufferAttribute(col,3));
-      const mountMat=new THREE.PointsMaterial({size:0.04, vertexColors:true, transparent:true});
-      const mountains=new THREE.Points(mountGeo, mountMat); scene.add(mountains);
+      // KRISHNA CENTRAL MODEL - Simple humanoid
+      const makeHuman = (color, scale=1) => {
+        const g=new THREE.Group();
+        const body=new THREE.Mesh(new THREE.CapsuleGeometry?new THREE.CapsuleGeometry(0.2*scale,0.6*scale,4,8):new THREE.SphereGeometry(0.25*scale), new THREE.MeshStandardMaterial({color}));
+        body.position.y=0.3*scale; g.add(body);
+        const head=new THREE.Mesh(new THREE.SphereGeometry(0.22*scale,16,16), new THREE.MeshStandardMaterial({color:0xffdbac})); head.position.y=0.9*scale; g.add(head);
+        return g;
+      };
+      // Krishna - Blue
+      groupKrishna = makeHuman(0x1e90ff,1.2); groupKrishna.position.set(0,0,0); scene.add(groupKrishna);
+      setStatus("🦚 Krishna Gokulam lo vachadu - Agents nadusthu vasthunnaru...");
 
-      scene.add(new THREE.AmbientLight(0x2233ff,0.7));
-      const pl=new THREE.PointLight(0x00ffff,2,5); pl.position.set(0,1,1); scene.add(pl);
+      // AGENTS - Start far, walk to Krishna
+      AGENTS_WALK.forEach((ag,i)=>{
+        const human=makeHuman(ag.color,1);
+        const angle=(i/AGENTS_WALK.length)*Math.PI*2;
+        human.position.set(Math.cos(angle)*8, 0, Math.sin(angle)*8);
+        human.userData={...ag, angle, target: new THREE.Vector3(0,0,0), speed:0.02+Math.random()*0.01, arrived:false};
+        scene.add(human); agents.push(human);
+      });
 
       let t=0;
-      const loop=()=>{ animId=requestAnimationFrame(loop); t+=0.01;
-        headGroup.rotation.y=Math.sin(t*0.3)*0.15;
-        face.scale.setScalar(1+Math.sin(t*2.2)*0.12);
-        face.material.color.setHSL(0.08+Math.sin(t)*0.02,1,0.55);
-        mountains.rotation.y=Math.sin(t*0.1)*0.08;
+      const loop=()=>{
+        anim=requestAnimationFrame(loop); t+=0.02;
+        groupKrishna.rotation.y=Math.sin(t*0.3)*0.2; groupKrishna.position.y=Math.sin(t)*0.05;
+        agents.forEach(h=>{
+          if(h.userData.arrived) { h.rotation.y+=0.01; h.position.y=Math.sin(t*2+h.userData.angle)*0.05; return; }
+          // Walk to Krishna
+          const dir=new THREE.Vector3().subVectors(h.userData.target, h.position).normalize();
+          h.position.add(dir.multiplyScalar(h.userData.speed));
+          h.lookAt(0,0,0);
+          // Bobbing walk
+          h.position.y=Math.abs(Math.sin(t*5))*0.15;
+          if(h.position.length()<1.2){ h.userData.arrived=true; setReports(prev=>{ if(!prev.find(p=>p.char===h.userData.char)) return [...prev, h.userData]; return prev; }); setActive(h.userData); setStatus(`${h.userData.icon} ${h.userData.char} vachadu - ${h.userData.msg} - Krishna ki report chesthunnadu`); }
+        });
         renderer.render(scene,camera);
       }; loop();
 
       const onResize=()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
-      const onMove=(e)=>{ const x=(e.clientX/window.innerWidth-0.5); headGroup.rotation.y=x*0.8; setStatus(`Tracking Prabhu - Eluru - ${active.char}`); };
-      const onFirstClick=()=>{
-        if(!unlocked.current){ unlocked.current=true; speechSynthesis.getVoices(); speak("Dharmo Rakshati Rakshitah Prabhu, AvenJarvis video reference la siddham"); setStatus("Voice enabled - Pinch to select agent"); }
-      };
-      window.addEventListener("resize",onResize); window.addEventListener("mousemove",onMove); window.addEventListener("click",onFirstClick);
+      window.addEventListener("resize",onResize);
     })();
-    return()=>{ cancel=true; cancelAnimationFrame(animId); };
-  },[active]);
+    return()=>{ dead=true; cancelAnimationFrame(anim); };
+  },[]);
 
   return (
-    <div className="relative w-screen h-screen bg-[#020210] overflow-hidden font-mono">
+    <div className="w-screen h-screen bg-sky-200 relative overflow-hidden font-mono">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-        <div className="text-cyan-300 text-xl tracking-[0.4em]">AVENJARVIS</div>
-        <div className="text-orange-400 text-[10px]">MAHABHARATAM • VIDEO REF • {active.char} • ELURU</div>
-        <div className="text-white/60 text-[11px] mt-1">{status}</div>
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center bg-black/60 px-6 py-2 rounded-full backdrop-blur z-10">
+        <div className="text-cyan-100 text-sm tracking-widest">AVENJARVIS - GOKULAM</div>
+        <div className="text-orange-300 text-[10px]">{status}</div>
       </div>
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 space-y-1.5">
-        {AGENTS.map(a=>(
-          <div key={a.char} onClick={()=>ask(a.char+" help",a)} className={`px-3 py-1.5 rounded border text-[10px] cursor-pointer ${active.char===a.char?"bg-cyan-500/30 border-cyan-400 text-cyan-100":"bg-black/40 border-white/10 text-white/50"}`}>{a.icon} {a.char}</div>
-        ))}
+      <div className="absolute right-3 top-20 w-72 bg-white/90 p-3 rounded-xl shadow-2xl z-10">
+        <div className="text-orange-600 font-bold text-xs">🦚 KRISHNA SABHA - REPORTS</div>
+        <div className="mt-2 space-y-1 max-h-64 overflow-y-auto">
+          {reports.map(r=>(
+            <div key={r.char} className="p-2 bg-sky-50 border-l-4 border-orange-400 rounded text-[11px]"><span className="font-bold">{r.icon} {r.char}</span> ({r.role}): {r.msg}</div>
+          ))}
+          {reports.length===0 && <div className="text-gray-400 text-[10px]">Agents naduchukuntu vasthunnaru Prabhu...</div>}
+        </div>
+        {active && <div className="mt-3 p-2 bg-cyan-100 rounded text-[10px]">Current: {active.icon} {active.char} reporting to Krishna</div>}
       </div>
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 w-80 p-4 rounded-xl bg-black/70 border border-orange-500/30 backdrop-blur">
-        <div className="text-orange-300 text-xs">🦚 {active.char} BRAIN - REAL 5 KEYS</div>
-        <div className="text-white/80 text-[11px] mt-3 leading-relaxed max-h-[180px] overflow-y-auto">{reply}</div>
-        <div className="flex gap-2 mt-3"><input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&ask(input)} placeholder="Prabhu adagandi..." className="flex-1 bg-black/60 border border-white/20 rounded px-2 py-2 text-[11px] outline-none" /><button onClick={()=>ask(input)} className="px-3 py-2 bg-cyan-500/20 border border-cyan-400 rounded text-cyan-300 text-[10px]">SEND</button></div>
-        <button onClick={()=>speak(reply)} className="mt-2 w-full py-2 bg-orange-500/20 border border-orange-400 rounded text-orange-300 text-[10px]">🔊 MAATLAADU - Video voice 0.52/0.48</button>
-      </div>
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-white/40 text-[10px] text-center">My AI assistant has a face now • It can track motion • Can respond to gestures like pinching • It runs autonomous loops<br/>👋 Move = Track • 👌 Click = Pinch • 🦚 Autonomous breathing</div>
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-black/50 text-[9px] bg-white/70 px-3 py-1 rounded-full z-10">Gokulam theme • Krishna centre • Agents walk & report • Clean village</div>
     </div>
   );
 }
